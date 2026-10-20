@@ -299,12 +299,24 @@ with tab_map:
                                                    "fillColor": "#31b5b9", "fillOpacity": 0.22},
                        highlight_function=lambda _: {"color": "#fb923c", "weight": 3,
                                                        "fillOpacity": 0.4}).add_to(m)
-    if selected != "Tous les quartiers" and visible:
+    # Toujours cadrer sur les quartiers visibles, même avec "Tous les quartiers".
+    # Sinon Folium conserve le zoom initial trop large de la carte.
+    if visible:
         bounds = [shape(z["geometry"]).bounds for z in visible]
-        m.fit_bounds([[min(x[1] for x in bounds), min(x[0] for x in bounds)],
-                      [max(x[3] for x in bounds), max(x[2] for x in bounds)]])
+        bounds = [b for b in bounds if all(float("-inf") < x < float("inf") for x in b)]
+        if bounds:
+            m.fit_bounds(
+                [[min(b[1] for b in bounds), min(b[0] for b in bounds)],
+                 [max(b[3] for b in bounds), max(b[2] for b in bounds)]],
+                padding_top_left=(16, 16),
+                padding_bottom_right=(16, 16),
+                max_zoom=15,
+            )
     folium.LayerControl().add_to(m)
-    st_folium(m, height=600, use_container_width=True, returned_objects=[])
+    st_folium(
+        m, height=670, use_container_width=True, returned_objects=[],
+        key=f"quartiers-map:{selected}:{show_borders}",
+    )
 
 with tab_analysis:
     st.subheader("Indicateurs territoriaux")
