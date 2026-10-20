@@ -11,6 +11,7 @@ import streamlit as st
 from pyproj import Geod
 from shapely.geometry import shape, mapping
 from streamlit_folium import st_folium
+from branca.colormap import LinearColormap
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -19,8 +20,10 @@ from app.regions import REGIONS
 from app.decoupages import charger_subdivisions
 from app.geo_shapes import construire_regions
 from app.name_matching import normaliser_nom, rapprochement
+from app.quartier_bi import preparer_couche
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
+CSV_REFERENCE = ROOT / "data" / "indicateurs_quartiers_2021.csv"
 GEOD = Geod(ellps="WGS84")
 
 st.set_page_config(page_title="GeoInsight AI | Intelligence territoriale", page_icon="🌎", layout="wide")
@@ -257,7 +260,7 @@ with st.sidebar:
     show_borders = st.checkbox("Afficher les limites des quartiers", value=True)
     uploaded = st.file_uploader("Importer des indicateurs CSV vérifiés", type="csv")
 
-source = uploaded if uploaded is not None else CSV if CSV.exists() else None
+source = uploaded if uploaded is not None else (CSV if CSV.exists() else CSV_REFERENCE if CSV_REFERENCE.exists() else None)
 socio = None
 if source is not None:
     try:
@@ -308,25 +311,68 @@ with tab_map:
     c1.metric("Quartiers affichés", len(filtered))
     c2.metric("Superficie des polygones", f"{filtered['superficie_km2'].sum():.1f} km²")
     if "population" in filtered and filtered["population"].notna().all():
-        c3.metric("Population", f"{filtered['population'].sum():,.0f}".replace(",", " "))
+        c3.metric("Population (2021)", f"{filtered['population'].sum():,.0f}".replace(",", " "))
     else:
-        c3.metric("Population", "Non disponible")
+        c3.metric("Population (2021)", "Partielle ou indisponible")
+
+    modes = {
+        "Population (2021)": "population",
+        "Densité (hab./km²)": "densite_hab_km2",
+        "Limites des quartiers": None,
+    }
+    mode = st.radio("Couche thématique", list(modes), horizontal=True,
+                    help="Population et densité calculées uniquement à partir de données disponibles.")
+    metric = modes[mode]
     selected_names = set(filtered["quartier"])
     visible = [z for z in zones if z["quartier"] in selected_names]
-    m = folium.Map(location=[46.8139, -71.2080], zoom_start=11, tiles="OpenStreetMap",
-                   control_scale=True)
+    couche, valeurs = preparer_couche(
+        visible, filtered.to_dict("records"), normaliser, metric or "population"
+    )
+    m = folium.Map(location=[46.8139, -71.2080], zoom_start=11,
+                   tiles="OpenStreetMap", control_scale=True)
+
+    color_scale = None
+    if metric and valeurs:
+        vmin, vmax = min(valeurs), max(valeurs)
+        if vmin == vmax:
+            vmax = vmin + 1
+        color_scale = LinearColormap(
+            ["#edf8f7", "#9fdbdc", "#46aab5", "#155b78"],
+            vmin=vmin, vmax=vmax,
+            caption="Population (habitants)" if metric == "population"
+                    else "Densité (habitants par km²)",
+        )
+        color_scale.add_to(m)
+    elif metric:
+        st.info("Aucune donnée numérique disponible pour cette couche.")
+
     if show_borders:
-        features = [{"type": "Feature", "properties": {"NOM": z["quartier"]},
-                     "geometry": z["geometry"]} for z in visible]
-        folium.GeoJson({"type": "FeatureCollection", "features": features},
-                       name="Quartiers",
-                       tooltip=folium.GeoJsonTooltip(fields=["NOM"], aliases=["Quartier :"]),
-                       style_function=lambda _: {"color": "#087f8c", "weight": 2,
-                                                   "fillColor": "#31b5b9", "fillOpacity": 0.22},
-                       highlight_function=lambda _: {"color": "#fb923c", "weight": 3,
-                                                       "fillOpacity": 0.4}).add_to(m)
-    # Toujours cadrer sur les quartiers visibles, même avec "Tous les quartiers".
-    # Sinon Folium conserve le zoom initial trop large de la carte.
+        def colorier(feature):
+            value = feature["properties"]["valeur"]
+            return {
+                "color": "#146478", "weight": 1.7,
+                "fillColor": color_scale(value) if color_scale and value is not None else "#bed5da",
+                "fillOpacity": 0.70 if color_scale and value is not None else 0.22,
+            }
+
+        folium.GeoJson(
+            couche,
+            name="Quartiers de Québec",
+            tooltip=folium.GeoJsonTooltip(
+                fields=["NOM", "Population", "Superficie", "Densité"],
+                aliases=["Quartier :", "Population 2021 :", "Superficie :", "Densité :"],
+                sticky=True,
+            ),
+            popup=folium.GeoJsonPopup(
+                fields=["NOM", "Population", "Superficie", "Densité"],
+                aliases=["Quartier :", "Population :", "Superficie :", "Densité :"],
+                labels=True,
+            ),
+            style_function=colorier,
+            highlight_function=lambda _: {"color": "#ff9d2e", "weight": 3.5,
+                                          "fillOpacity": 0.84},
+        ).add_to(m)
+
     if visible:
         bounds = [shape(z["geometry"]).bounds for z in visible]
         bounds = [b for b in bounds if all(float("-inf") < x < float("inf") for x in b)]
@@ -341,28 +387,67 @@ with tab_map:
     folium.LayerControl().add_to(m)
     st_folium(
         m, height=670, use_container_width=True, returned_objects=[],
-        key=f"quartiers-map:{selected}:{show_borders}",
+        key=f"quartiers-map:{selected}:{show_borders}:{mode}",
     )
+    st.caption("Clique sur un quartier pour consulter sa fiche; les couleurs sont relatives "
+               "aux quartiers actuellement affichés et ne constituent pas des prévisions.")
 
 with tab_analysis:
     st.subheader("Indicateurs territoriaux")
     if socio is None:
-        st.info("Les superficies sont réelles. Importer des données fiables pour les indicateurs socioéconomiques.")
+        st.info("Les superficies sont disponibles. Importez des données fiables pour la population.")
     fields = ["quartier", "superficie_km2"] + [
         k for k in ("population", "densite_hab_km2", "revenu_median", "annee", "source")
-        if k in filtered.columns]
-    st.dataframe(filtered[fields].sort_values("quartier"), use_container_width=True, hide_index=True)
-    st.download_button("Exporter CSV", data=filtered[fields].to_csv(index=False).encode("utf-8-sig"),
-                       file_name="geoinsight_quebec.csv", mime="text/csv")
-    options = ["superficie_km2"] + [k for k in
-        ("population", "densite_hab_km2", "revenu_median")
-        if k in filtered and filtered[k].notna().any()]
-    metric = st.selectbox("Comparer par indicateur", options)
-    plot = filtered[["quartier", metric]].dropna().set_index("quartier").sort_values(metric, ascending=False)
-    if not plot.empty:
-        st.bar_chart(plot, horizontal=True)
+        if k in filtered.columns
+    ]
+    st.dataframe(filtered[fields].sort_values("quartier"),
+                 use_container_width=True, hide_index=True)
+    st.download_button(
+        "Exporter les indicateurs (CSV)",
+        data=filtered[fields].to_csv(index=False).encode("utf-8-sig"),
+        file_name="geoinsight_quebec_indicateurs.csv", mime="text/csv",
+    )
+
+    chart_options = ["superficie_km2"] + [
+        k for k in ("population", "densite_hab_km2", "revenu_median")
+        if k in filtered and filtered[k].notna().any()
+    ]
+    indicateur = st.selectbox("Comparer visuellement les quartiers", chart_options)
+    graphique = (filtered[["quartier", indicateur]]
+                 .dropna().set_index("quartier")
+                 .sort_values(indicateur, ascending=False))
+    if not graphique.empty:
+        st.bar_chart(graphique, horizontal=True)
+
+    st.divider()
+    st.subheader("Comparer deux quartiers")
+    liste_comparaison = sorted(merged["quartier"].tolist())
+    colonne_a, colonne_b = st.columns(2)
+    with colonne_a:
+        quartier_a = st.selectbox("Quartier A", liste_comparaison, index=0)
+    with colonne_b:
+        quartier_b = st.selectbox("Quartier B", liste_comparaison,
+                                 index=1 if len(liste_comparaison) > 1 else 0)
+    if quartier_a == quartier_b:
+        st.info("Choisissez deux quartiers différents pour les comparer.")
+    else:
+        couple = merged.set_index("quartier").loc[[quartier_a, quartier_b]]
+        comparaison = couple[[k for k in (
+            "superficie_km2", "population", "densite_hab_km2", "revenu_median"
+        ) if k in couple.columns]].T
+        comparaison.index = [
+            {"superficie_km2": "Superficie (km²)",
+             "population": "Population (2021)",
+             "densite_hab_km2": "Densité (hab./km²)",
+             "revenu_median": "Revenu médian (si renseigné)"}.get(k, k)
+            for k in comparaison.index
+        ]
+        st.dataframe(comparaison, use_container_width=True)
+
     if socio is not None and "population" in merged:
-        st.caption(f"Couverture population : {merged['population'].notna().sum()}/{len(merged)} quartiers.")
+        st.caption(f"Population : {merged['population'].notna().sum()}/{len(merged)} "
+                   "quartiers renseignés. Les effectifs peuvent différer légèrement "
+                   "du total municipal en raison des arrondis du recensement.")
 
 with tab_method:
     st.markdown("""**Superficie :** calcul géodésique sur ellipsoïde WGS84; inclut les
