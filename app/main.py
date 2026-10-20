@@ -1,5 +1,6 @@
 """GeoInsight AI — plateforme géospatiale extensible, pilote initial à Québec."""
 from pathlib import Path
+import sys
 import json
 import unicodedata
 
@@ -11,6 +12,8 @@ from shapely.geometry import shape
 from streamlit_folium import st_folium
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 GEOD = Geod(ellps="WGS84")
@@ -65,8 +68,8 @@ def charger_indicateurs(source):
     return df
 
 st.title("🌎 GeoInsight AI")
-st.caption("Plateforme de Business Intelligence géospatiale — extensible à plusieurs territoires")
-st.caption("Territoire actuellement disponible : ville de Québec (pilote)")
+st.caption("Plateforme de Business Intelligence géospatiale · Province de Québec")
+st.caption("Couverture visée : ensemble de la province de Québec · Données actuellement chargées : quartiers de la ville de Québec")
 if not GEOJSON.exists():
     try:
         from etl.ingest_quartiers import fetch_quartiers
@@ -94,7 +97,7 @@ names = sorted(territoires["quartier"].tolist())
 
 with st.sidebar:
     st.title("🧭 Exploration territoriale")
-    st.selectbox("Territoire", ["Québec, Canada — pilote"], help="D’autres villes seront ajoutées dans les prochaines versions.")
+    st.selectbox("Couverture", ["Province de Québec — pilote actuel : ville de Québec"], help="Les données des autres municipalités seront intégrées progressivement.")
     selected = st.selectbox("Sélectionner un quartier", ["Tous les quartiers"] + names)
     show_borders = st.checkbox("Afficher les limites", value=True)
     st.divider()
