@@ -60,3 +60,9 @@ La vue « Quartiers de Québec » permet désormais :
 **Provenance et limites :** les populations par quartier sont les valeurs du jeu de référence saisi pour le Recensement 2021, renvoyant aux [portraits officiels de la Ville de Québec](https://www.ville.quebec.qc.ca/apropos/portrait/quelques_chiffres/quartiers/index.aspx). La somme des populations de quartiers (549 470) diffère de 10 habitants du total municipal publié (549 460), ce qui est compatible avec les règles d'arrondi du recensement. Ces valeurs n'ont pas été contrôlées une à une contre les 35 rapports lors de cette intégration; une validation documentaire complète reste à réaliser avant toute utilisation décisionnelle à enjeu.
 
 Les indicateurs manquants ne sont pas estimés. Les cartes choroplèthes sont descriptives et ne constituent pas des prédictions.
+
+## Carte limitée à la province de Québec
+
+Les vues Région → MRC → Municipalité → Quartier appliquent un **masque extérieur opaque** basé sur l'union des 17 régions administratives officielles du MRNF. Les fonds **Plan** et **Satellite** restent visibles sur le territoire québécois ; les régions limitrophes (Ontario, Nouveau-Brunswick, États-Unis, etc.) sont visuellement masquées. La navigation cartographique est bornée autour du Québec.
+
+Le masque est construit dans `app/quebec_mask.py`, mis en cache quotidiennement dans Streamlit et couvert par `tests/test_quebec_mask.py`. Si le calcul topologique échoue, la carte s'affiche sans fond cartographique plutôt que de montrer les territoires voisins. Les limites simplifiées servent à l'affichage, non à établir des superficies légales.
