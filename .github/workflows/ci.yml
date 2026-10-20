@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
 
+# Un nouveau commit annule les exécutions obsolètes du même chantier.
+concurrency:
+  group: geoinsight-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -21,4 +29,11 @@ jobs:
       - name: Vérifier la syntaxe et les tests
         run: |
           python -m compileall -q app etl tests
-          python -m pytest -q tests/test_geo_shapes.py tests/test_name_matching.py tests/test_quartier_bi.py tests/test_quebec_mask.py tests/test_regional_bi.py tests/test_socioeconomic.py tests/test_regional_charts.py
+          python -m pytest -q tests/test_geo_shapes.py tests/test_name_matching.py tests/test_quartier_bi.py tests/test_quebec_mask.py tests/test_regional_bi.py tests/test_socioeconomic.py tests/test_regional_charts.py --junitxml=rapports-tests.xml
+      - name: Conserver les résultats même si les tests échouent
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geoinsight-resultats-tests
+          path: rapports-tests.xml
+          if-no-files-found: ignore
