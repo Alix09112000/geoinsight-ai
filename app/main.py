@@ -123,38 +123,74 @@ if vue == "Québec — régions":
         st.caption(str(error))
         st.stop()
 
+    from app.decoupages import charger_subdivisions
+
     regions.sort(key=lambda f: f["properties"]["code"])
     options = ["Toutes les régions"] + [
         f'{r["properties"]["code"]} — {r["properties"]["nom"]}' for r in regions
     ]
     choix = st.selectbox("Région administrative", options)
     visibles = regions if choix == "Toutes les régions" else [
-        r for r in regions
-        if f'{r["properties"]["code"]} — {r["properties"]["nom"]}' == choix
+        r for r in regions if f'{r["properties"]["code"]} — {r["properties"]["nom"]}' == choix
     ]
+    niveau = "Régions"
+    if choix != "Toutes les régions":
+        code_region = visibles[0]["properties"]["code"]
+        explorer = st.checkbox("Explorer les MRC", value=False)
+        if explorer:
+            try:
+                mrcs = charger_subdivisions("mrc", code_region)
+            except (requests.RequestException, ValueError) as error:
+                st.warning(f"Impossible de charger les MRC : {error}")
+                mrcs = []
+            if mrcs:
+                opts_mrc = ["Toutes les MRC"] + [
+                    f'{m["properties"]["code"]} — {m["properties"]["nom"]}' for m in mrcs
+                ]
+                choix_mrc = st.selectbox("MRC", opts_mrc)
+                visibles = mrcs if choix_mrc == "Toutes les MRC" else [
+                    m for m in mrcs if f'{m["properties"]["code"]} — {m["properties"]["nom"]}' == choix_mrc
+                ]
+                niveau = "MRC"
+                if choix_mrc != "Toutes les MRC":
+                    try:
+                        municipalites = charger_subdivisions("municipalite", visibles[0]["properties"]["code"])
+                    except (requests.RequestException, ValueError) as error:
+                        st.warning(f"Impossible de charger les municipalités : {error}")
+                        municipalites = []
+                    if municipalites:
+                        options_mun = ["Toutes les municipalités"] + [
+                            f'{m["properties"]["code"]} — {m["properties"]["nom"]}' for m in municipalites
+                        ]
+                        choix_mun = st.selectbox("Municipalité", options_mun)
+                        visibles = municipalites if choix_mun == "Toutes les municipalités" else [
+                            m for m in municipalites if f'{m["properties"]["code"]} — {m["properties"]["nom"]}' == choix_mun
+                        ]
+                        niveau = "Municipalités"
     c1, c2 = st.columns(2)
-    c1.metric("Régions du Québec", len(regions))
-    c2.metric("Régions affichées", len(visibles))
+    c1.metric("Niveau affiché", niveau)
+    c2.metric("Entités affichées", len(visibles))
     carte = folium.Map(location=[51.2, -71.4], zoom_start=5,
                        tiles="OpenStreetMap", control_scale=True)
-    folium.GeoJson(
-        {"type": "FeatureCollection", "features": visibles},
-        name="Régions administratives",
-        tooltip=folium.GeoJsonTooltip(fields=["code", "nom"], aliases=["Code :", "Région :"]),
-        style_function=lambda _: {"color": "#087f8c", "weight": 1.7,
-                                  "fillColor": "#21a0a6", "fillOpacity": 0.16},
-        highlight_function=lambda _: {"color": "#ff9d2e", "weight": 3,
-                                      "fillOpacity": 0.36},
-    ).add_to(carte)
-    polygons = [shape(f["geometry"]).bounds for f in visibles]
-    carte.fit_bounds([[min(b[1] for b in polygons), min(b[0] for b in polygons)],
-                      [max(b[3] for b in polygons), max(b[2] for b in polygons)]])
+    if visibles:
+        folium.GeoJson(
+            {"type": "FeatureCollection", "features": visibles},
+            name="Découpage administratif",
+            tooltip=folium.GeoJsonTooltip(fields=["code", "nom"], aliases=["Code :", "Territoire :"]),
+            style_function=lambda _: {"color": "#087f8c", "weight": 1.7,
+                                      "fillColor": "#21a0a6", "fillOpacity": 0.16},
+            highlight_function=lambda _: {"color": "#ff9d2e", "weight": 3,
+                                          "fillOpacity": 0.36}
+        ).add_to(carte)
+        polygons = [shape(f["geometry"]).bounds for f in visibles]
+        carte.fit_bounds([[min(b[1] for b in polygons), min(b[0] for b in polygons)],
+                          [max(b[3] for b in polygons), max(b[2] for b in polygons)]])
     folium.LayerControl().add_to(carte)
     st_folium(carte, height=650, use_container_width=True, returned_objects=[])
-    st.caption("Source : Gouvernement du Québec, MRNF — Découpages administratifs, "
-               "service ArcGIS REST (simplification géométrique pour l'affichage).")
-    st.info("Prochaine étape : MRC et municipalités. Les données de quartiers de Québec "
-            "restent accessibles dans la deuxième vue.")
+    st.caption("Source : MRNF — Découpages administratifs, ArcGIS REST. Géométries simplifiées pour affichage.")
+    st.info("La hiérarchie région → MRC → municipalité est disponible. "
+            "Certaines villes à statut particulier ne suivent pas directement cette hiérarchie; "
+            "leur prise en charge complète sera améliorée.")
     st.stop()
 
 st.title("🌎 GeoInsight AI")
