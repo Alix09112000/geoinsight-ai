@@ -1,3 +1,9 @@
+## Design dashboard — maquette approuvée
+
+L'interface Streamlit suit désormais la maquette de référence : bandeau compact bleu marine, barre latérale claire, quatre KPI, grande carte interactive et fiche du territoire à droite. Les deux fonds **Plan (OpenStreetMap)** et **Satellite (Esri World Imagery)** sont fonctionnels. La vue des quartiers conserve les choroplèthes, les données de population 2021, les comparaisons et les exports CSV.
+
+Les éléments absents de cette version (recherche universelle, 3D réelle, prédiction IA) ne sont pas présentés comme opérationnels. La reproduction pixel par pixel nécessiterait un front-end dédié comme React/MapLibre ; ce chantier reste distinct de la version Streamlit publique.
+
 # GeoInsight AI — Business Intelligence géospatiale du Québec
 
 **Vision :** analyser, comparer et modéliser les territoires de toute la **province de Québec** (régions administratives, MRC, municipalités, quartiers), avec les données ouvertes et des méthodes géostatistiques.
