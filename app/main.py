@@ -123,91 +123,109 @@ def charger_regions():
         raise ValueError(f"Nombre de régions inattendu : {len(regions)} (17 attendues).")
     return regions
 
+from app.decoupages import charger_subdivisions
+
+st.sidebar.title("🧭 GeoInsight AI")
+st.sidebar.caption("Province de Québec")
+st.title("🌎 GeoInsight AI — Explorer le Québec")
+
+# Navigation en cascade, sans changer de vue.
+try:
+    regions = sorted(charger_regions(), key=lambda f: f["properties"]["code"])
+except (requests.RequestException, ValueError, TypeError) as error:
+    st.error("Les limites des régions ne sont pas disponibles actuellement.")
+    st.caption(str(error))
+    st.stop()
+
+regional_options = {"Toute la province": None}
+regional_options.update({
+    f'{r["properties"]["code"]} — {r["properties"]["nom"]}': r
+    for r in regions
+})
 with st.sidebar:
-    st.markdown("### 🗺️ Échelle d’exploration")
-    vue = st.radio("Vue", ["Québec — régions", "Ville de Québec — quartiers"], index=0)
+    selection_region = st.selectbox("1. Région administrative", list(regional_options))
+region = regional_options[selection_region]
+visibles = regions if region is None else [region]
+niveau = "Régions administratives"
+quartiers_actifs = False
 
-if vue == "Québec — régions":
-    st.title("🌎 GeoInsight AI — Province de Québec")
-    st.caption("Limites officielles des 17 régions administratives")
+if region is not None:
+    code_region = region["properties"]["code"]
     try:
-        regions = charger_regions()
+        mrcs = charger_subdivisions("mrc", code_region)
     except (requests.RequestException, ValueError, TypeError) as error:
-        st.error("Impossible de charger les limites officielles pour le moment.")
-        st.caption(str(error))
-        st.stop()
-
-    from app.decoupages import charger_subdivisions
-
-    regions.sort(key=lambda f: f["properties"]["code"])
-    options = ["Toutes les régions"] + [
-        f'{r["properties"]["code"]} — {r["properties"]["nom"]}' for r in regions
-    ]
-    choix = st.selectbox("Région administrative", options)
-    visibles = regions if choix == "Toutes les régions" else [
-        r for r in regions if f'{r["properties"]["code"]} — {r["properties"]["nom"]}' == choix
-    ]
-    niveau = "Régions"
-    if choix != "Toutes les régions":
-        code_region = visibles[0]["properties"]["code"]
-        explorer = st.checkbox("Explorer les MRC", value=False)
-        if explorer:
+        st.warning(f"MRC indisponibles pour cette région : {error}")
+        mrcs = []
+    if mrcs:
+        mrc_options = {"Toutes les MRC": None}
+        mrc_options.update({
+            f'{m["properties"]["code"]} — {m["properties"]["nom"]}': m
+            for m in mrcs
+        })
+        with st.sidebar:
+            selection_mrc = st.selectbox("2. MRC ou territoire équivalent", list(mrc_options))
+        mrc = mrc_options[selection_mrc]
+        visibles = mrcs if mrc is None else [mrc]
+        niveau = "MRC et territoires équivalents"
+        if mrc is not None:
             try:
-                mrcs = charger_subdivisions("mrc", code_region)
-            except (requests.RequestException, ValueError) as error:
-                st.warning(f"Impossible de charger les MRC : {error}")
-                mrcs = []
-            if mrcs:
-                opts_mrc = ["Toutes les MRC"] + [
-                    f'{m["properties"]["code"]} — {m["properties"]["nom"]}' for m in mrcs
-                ]
-                choix_mrc = st.selectbox("MRC", opts_mrc)
-                visibles = mrcs if choix_mrc == "Toutes les MRC" else [
-                    m for m in mrcs if f'{m["properties"]["code"]} — {m["properties"]["nom"]}' == choix_mrc
-                ]
-                niveau = "MRC"
-                if choix_mrc != "Toutes les MRC":
-                    try:
-                        municipalites = charger_subdivisions("municipalite", visibles[0]["properties"]["code"])
-                    except (requests.RequestException, ValueError) as error:
-                        st.warning(f"Impossible de charger les municipalités : {error}")
-                        municipalites = []
-                    if municipalites:
-                        options_mun = ["Toutes les municipalités"] + [
-                            f'{m["properties"]["code"]} — {m["properties"]["nom"]}' for m in municipalites
-                        ]
-                        choix_mun = st.selectbox("Municipalité", options_mun)
-                        visibles = municipalites if choix_mun == "Toutes les municipalités" else [
-                            m for m in municipalites if f'{m["properties"]["code"]} — {m["properties"]["nom"]}' == choix_mun
-                        ]
-                        niveau = "Municipalités"
-    c1, c2 = st.columns(2)
-    c1.metric("Niveau affiché", niveau)
-    c2.metric("Entités affichées", len(visibles))
-    carte = folium.Map(location=[51.2, -71.4], zoom_start=5,
+                municipalites = charger_subdivisions("municipalite", mrc["properties"]["code"])
+            except (requests.RequestException, ValueError, TypeError) as error:
+                st.warning(f"Municipalités indisponibles : {error}")
+                municipalites = []
+            if municipalites:
+                mun_options = {"Toutes les municipalités": None}
+                mun_options.update({
+                    f'{m["properties"]["code"]} — {m["properties"]["nom"]}': m
+                    for m in municipalites
+                })
+                with st.sidebar:
+                    selection_mun = st.selectbox("3. Municipalité", list(mun_options))
+                mun = mun_options[selection_mun]
+                visibles = municipalites if mun is None else [mun]
+                niveau = "Municipalités"
+                if mun is not None and normaliser(mun["properties"]["nom"]) == "quebec":
+                    quartiers_actifs = st.sidebar.checkbox(
+                        "4. Explorer les quartiers de Québec", value=False
+                    )
+
+if not quartiers_actifs:
+    st.caption("Sélectionne une région, puis une MRC et une municipalité dans le menu latéral.")
+    left, right = st.columns(2)
+    left.metric("Niveau géographique", niveau)
+    right.metric("Territoires affichés", len(visibles))
+
+    carte = folium.Map(location=[49.6, -71.4], zoom_start=5,
                        tiles="OpenStreetMap", control_scale=True)
     if visibles:
         folium.GeoJson(
             {"type": "FeatureCollection", "features": visibles},
-            name="Découpage administratif",
-            tooltip=folium.GeoJsonTooltip(fields=["code", "nom"], aliases=["Code :", "Territoire :"]),
-            style_function=lambda _: {"color": "#087f8c", "weight": 1.7,
+            name=niveau,
+            tooltip=folium.GeoJsonTooltip(fields=["code", "nom"],
+                                          aliases=["Code :", "Nom :"]),
+            style_function=lambda _: {"color": "#087f8c", "weight": 1.8,
                                       "fillColor": "#21a0a6", "fillOpacity": 0.16},
             highlight_function=lambda _: {"color": "#ff9d2e", "weight": 3,
-                                          "fillOpacity": 0.36}
+                                          "fillOpacity": 0.35},
         ).add_to(carte)
-        polygons = [shape(f["geometry"]).bounds for f in visibles]
-        carte.fit_bounds([[min(b[1] for b in polygons), min(b[0] for b in polygons)],
-                          [max(b[3] for b in polygons), max(b[2] for b in polygons)]])
+        # Calcul de cadrage à partir des coordonnées, sans union topologique GEOS.
+        extent = [shape(f["geometry"]).bounds for f in visibles]
+        if region is None:
+            # Vue provinciale plus lisible : cadrage conservant le Québec méridional.
+            carte.location = [49.6, -71.4]
+            carte.options["zoom"] = 5
+        else:
+            carte.fit_bounds([[min(x[1] for x in extent), min(x[0] for x in extent)],
+                              [max(x[3] for x in extent), max(x[2] for x in extent)]])
     folium.LayerControl().add_to(carte)
     st_folium(carte, height=650, use_container_width=True, returned_objects=[])
-    st.caption("Source : MRNF — Découpages administratifs, ArcGIS REST. Géométries simplifiées pour affichage.")
-    st.info("La hiérarchie région → MRC → municipalité est disponible. "
-            "Certaines villes à statut particulier ne suivent pas directement cette hiérarchie; "
-            "leur prise en charge complète sera améliorée.")
+    st.caption("Source des limites : MRNF, service de découpages administratifs du Québec.")
+    st.info("Le détail des quartiers est actuellement disponible pour la ville de Québec. "
+            "Les autres villes seront ajoutées lorsque des découpages fiables seront disponibles.")
     st.stop()
 
-st.title("🌎 GeoInsight AI")
+st.caption("Navigation : Province → Capitale-Nationale → territoire équivalent → Québec → quartiers")
+st.subheader("Quartiers de la ville de Québec")
 st.caption("Plateforme de Business Intelligence géospatiale · Province de Québec")
 st.caption("Couverture visée : ensemble de la province de Québec · Données actuellement chargées : quartiers de la ville de Québec")
 if not GEOJSON.exists():
@@ -236,13 +254,9 @@ if territoires["key"].duplicated().any():
 names = sorted(territoires["quartier"].tolist())
 
 with st.sidebar:
-    st.title("🧭 Exploration territoriale")
-    st.selectbox("Couverture", ["Province de Québec — pilote actuel : ville de Québec"], help="Les données des autres municipalités seront intégrées progressivement.")
-    selected = st.selectbox("Sélectionner un quartier", ["Tous les quartiers"] + names)
-    show_borders = st.checkbox("Afficher les limites", value=True)
-    st.divider()
-    uploaded = st.file_uploader("Charger un CSV socioéconomique vérifié", type="csv")
-    st.caption("Colonnes : quartier, source, annee; population et revenu_median facultatives.")
+    selected = st.selectbox("5. Quartier de Québec", ["Tous les quartiers"] + names)
+    show_borders = st.checkbox("Afficher les limites des quartiers", value=True)
+    uploaded = st.file_uploader("Importer des indicateurs CSV vérifiés", type="csv")
 
 source = uploaded if uploaded is not None else CSV if CSV.exists() else None
 socio = None
