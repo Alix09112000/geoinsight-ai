@@ -221,10 +221,7 @@ if not quartiers_actifs:
     st.caption("Les quartiers sont disponibles pour la ville de Québec lorsqu’elle est sélectionnée; ailleurs, leur couverture dépend des données existantes.")
     st.stop()
 
-st.caption("Navigation : Province → Capitale-Nationale → territoire équivalent → Québec → quartiers")
-st.subheader("Analyse locale · Quartiers de Québec")
-st.caption("Plateforme de Business Intelligence géospatiale · Province de Québec")
-st.caption("Couverture visée : ensemble de la province de Québec · Données actuellement chargées : quartiers de la ville de Québec")
+section("Quartiers de la ville de Québec", "Données municipales et population du recensement 2021")
 if not GEOJSON.exists():
     try:
         from etl.ingest_quartiers import fetch_quartiers
@@ -289,7 +286,7 @@ if socio is not None:
             f"Restent sans correspondance : {', '.join(unmatched)}"
         )
     else:
-        st.success(f"CSV associé aux {coverage} quartiers. Population et autres indicateurs conservés.")
+        st.caption(f"✓ Indicateurs associés à {coverage} quartiers — source et millésime conservés.")
 
     merged = merged.merge(
         socio.drop(columns=["quartier"]), on="key", how="left", validate="one_to_one"
@@ -300,16 +297,27 @@ if socio is not None:
         )
 filtered = merged if selected == "Tous les quartiers" else merged[merged["quartier"] == selected]
 
-tab_map, tab_analysis, tab_method = st.tabs(["🗺️ Carte", "📊 Analyses", "📚 Méthode"])
-with tab_map:
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Quartiers affichés", len(filtered))
-    c2.metric("Superficie des polygones", f"{filtered['superficie_km2'].sum():.1f} km²")
-    if "population" in filtered and filtered["population"].notna().all():
-        c3.metric("Population (2021)", f"{filtered['population'].sum():,.0f}".replace(",", " "))
-    else:
-        c3.metric("Population (2021)", "Partielle ou indisponible")
+population_complete = (
+    "population" in filtered.columns
+    and not filtered.empty
+    and filtered["population"].notna().all()
+)
+total_population = (
+    int(filtered["population"].sum()) if population_complete else None
+)
+area_total = float(filtered["superficie_km2"].sum())
+section("Tableau de bord démographique", "Quartiers de Québec · Recensement 2021")
+k1, k2, k3, k4 = st.columns(4, gap="small")
+k1.metric("Quartiers affichés", len(filtered))
+k2.metric("Population (2021)",
+          f"{total_population:,}".replace(",", " ") if total_population is not None else "Indisponible")
+k3.metric("Superficie", f"{area_total:,.1f} km²".replace(",", " "))
+k4.metric("Densité (hab./km²)",
+          f"{(total_population / area_total):,.0f}".replace(",", " ")
+          if total_population is not None and area_total > 0 else "Indisponible")
 
+tab_map, tab_analysis, tab_method = st.tabs(["🗺️ Explorer la carte", "📊 Analyse et comparaison", "📚 Sources et méthode"])
+with tab_map:
     modes = {
         "Population (2021)": "population",
         "Densité (hab./km²)": "densite_hab_km2",
@@ -323,8 +331,7 @@ with tab_map:
     couche, valeurs = preparer_couche(
         visible, filtered.to_dict("records"), normaliser, metric or "population"
     )
-    m = folium.Map(location=[46.8139, -71.2080], zoom_start=11,
-                   tiles="OpenStreetMap", control_scale=True)
+    m = map_object(location=[46.8139, -71.2080], zoom=11, fond=fond_carte)
 
     color_scale = None
     if metric and valeurs:
@@ -380,12 +387,41 @@ with tab_map:
                 max_zoom=15,
             )
     folium.LayerControl().add_to(m)
-    st_folium(
-        m, height=670, use_container_width=True, returned_objects=[],
-        key=f"quartiers-map:{selected}:{show_borders}:{mode}",
-    )
-    st.caption("Clique sur un quartier pour consulter sa fiche; les couleurs sont relatives "
-               "aux quartiers actuellement affichés et ne constituent pas des prévisions.")
+    section("Visualisation géospatiale", "Clique sur un polygone pour ses informations")
+    col_map, col_fiche = st.columns([3.35, 1.2], gap="small")
+    with col_map:
+        st_folium(
+            m, height=615, use_container_width=True, returned_objects=[],
+            key=f"quartiers-map:{selected}:{show_borders}:{mode}:{fond_carte}",
+        )
+    with col_fiche:
+        row = filtered.iloc[0] if selected != "Tous les quartiers" and len(filtered) else None
+        local_population = (
+            f"{int(row['population']):,}".replace(",", " ")
+            if row is not None and "population" in filtered.columns
+            and pd.notna(row.get("population")) else None
+        )
+        local_area = (
+            f"{row['superficie_km2']:.2f} km²" if row is not None else f"{area_total:.1f} km²"
+        )
+        local_density = (
+            f"{row['densite_hab_km2']:,.0f} hab./km²".replace(",", " ")
+            if row is not None and "densite_hab_km2" in filtered.columns
+            and pd.notna(row.get("densite_hab_km2")) else None
+        )
+        inspector(
+            nom=selected if row is not None else "Ville de Québec · Quartiers",
+            niveau="Quartier" if row is not None else "35 quartiers disponibles",
+            population=local_population if row is not None else (
+                f"{total_population:,}".replace(",", " ")
+                if total_population is not None else None),
+            superficie=local_area,
+            densite=local_density if row is not None else (
+                f"{total_population / area_total:,.0f} hab./km²".replace(",", " ")
+                if total_population is not None and area_total else None),
+            note="Population : recensement 2021. Densité calculée à partir des polygones municipaux ; les surfaces peuvent inclure des plans d'eau.",
+        )
+    st.caption("Couleurs descriptives relatives aux quartiers affichés · Cliquez sur les surfaces pour afficher les détails.")
 
 with tab_analysis:
     st.subheader("Indicateurs territoriaux")
