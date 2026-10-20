@@ -67,6 +67,35 @@ def charger_indicateurs(source):
                 raise ValueError("Valeur négative : " + field)
     return df
 
+from app.regions import REGIONS
+
+with st.sidebar:
+    st.markdown("### 🗺️ Échelle d’exploration")
+    vue = st.radio("Vue", ["Québec — régions", "Ville de Québec — quartiers"], index=0)
+
+if vue == "Québec — régions":
+    st.title("🌎 GeoInsight AI — Québec")
+    st.caption("Exploration des 17 régions administratives · Repères géographiques indicatifs")
+    options = ["Toutes les régions"] + [f"{code} — {name}" for code, name, lat, lon in REGIONS]
+    choix = st.selectbox("Région administrative", options)
+    regions_visibles = REGIONS if choix == "Toutes les régions" else [
+        row for row in REGIONS if f"{row[0]} — {row[1]}" == choix
+    ]
+    st.metric("Régions administratives", len(REGIONS))
+    st.info("Les marqueurs sont des points de navigation approximatifs, pas des limites administratives. "
+            "Les polygones officiels, les MRC et les municipalités seront intégrés dans une prochaine version.")
+    provinciale = folium.Map(location=[51.1, -71.5], zoom_start=5, tiles="OpenStreetMap",
+                            control_scale=True)
+    for code, name, lat, lon in regions_visibles:
+        folium.Marker([lat, lon], tooltip=f"{code} — {name}",
+                      popup=f"Région administrative : {name}").add_to(provinciale)
+    if len(regions_visibles) == 1:
+        provinciale.location = [regions_visibles[0][2], regions_visibles[0][3]]
+        provinciale.options["zoom"] = 8
+    st_folium(provinciale, height=640, use_container_width=True, returned_objects=[])
+    st.caption("Référence : Gouvernement du Québec, Portrait des régions administratives.")
+    st.stop()
+
 st.title("🌎 GeoInsight AI")
 st.caption("Plateforme de Business Intelligence géospatiale · Province de Québec")
 st.caption("Couverture visée : ensemble de la province de Québec · Données actuellement chargées : quartiers de la ville de Québec")
