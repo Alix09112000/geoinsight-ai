@@ -1,6 +1,6 @@
-# GeoInsight AI — Intelligent Geospatial Business Intelligence
+# GeoInsight AI — Business Intelligence géospatiale du Québec
 
-**Vision :** plateforme extensible de Business Intelligence géospatiale, de prédiction spatiale et d’aide à la décision pour les villes et territoires à l’échelle internationale.\n\n**Pilote disponible :** ville de Québec, Canada (version 2.0). Les premiers outils affichent ses quartiers, calculent des superficies géodésiques et permettent de comparer des indicateurs issus de données vérifiées. L’interface ne prétend pas encore gérer plusieurs villes.
+**Vision :** analyser, comparer et modéliser les territoires de toute la **province de Québec** (régions administratives, MRC, municipalités, quartiers), avec les données ouvertes et des méthodes géostatistiques.
 
 ## Installation (Windows)
 
@@ -32,13 +32,12 @@ Source : Ville de Québec / Données Québec. Projet expérimental, sans affilia
 
 Lien public attribué après le déploiement, sur un sous-domaine `streamlit.app`.
 
-## Feuille de route multi-territoires
+## Feuille de route provinciale
 
-- Référentiel des territoires (pays → régions → villes → subdivisions administratives), avec identifiants stables et métadonnées de sources.
-- Connecteurs de données par pays/ville; harmonisation des coordonnées, unités, dates et définitions.
-- Schémas spatiaux génériques dans PostGIS plutôt que des tables propres aux quartiers de Québec.
-- Comparaisons territoriales uniquement sur des indicateurs méthodologiquement comparables.
-- Modèles prédictifs, validation spatiale et indicateurs d’incertitude.
-- Accès multilingue et visualisations 2D/3D.
+1. Pilote : quartiers de la ville de Québec.
+2. Intégrer les limites des régions administratives, des MRC et municipalités de la province.
+3. Ajouter des indicateurs socioéconomiques harmonisés et leurs métadonnées.
+4. Comparer les territoires à échelles comparables, avec estimation des incertitudes.
+5. Développer la prédiction spatiale et la validation par blocs spatiaux.
 
-L’extension multi-villes est **planifiée, non encore développée**.
+Le périmètre du projet est la **province de Québec**; l’application ne prétend pas encore offrir une couverture provinciale complète.
