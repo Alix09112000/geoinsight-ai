@@ -21,7 +21,7 @@ from app.decoupages import charger_subdivisions
 from app.geo_shapes import construire_regions
 from app.name_matching import normaliser_nom, rapprochement
 from app.quartier_bi import preparer_couche
-from app.ui import header, inspector, map_object, section, legend_choropleth
+from app.ui import header, inspector, map_object, section, legend_choropleth, metric_card
 from app.quebec_mask import masque_hors_quebec, ajouter_masque
 from app.regional_bi import tableau_regions, comparer_regions
 from app.socioeconomic import INDICATEURS, charger_indicateurs_regions, joindre_indicateurs_regions, format_indicateur
@@ -111,9 +111,17 @@ def calculer_superficies_regionales(regions_officielles):
     return tableau_regions(regions_officielles)
 
 
-st.sidebar.markdown("## 🌐 GeoInsight AI")
-st.sidebar.caption("EXPLORER LE QUÉBEC")
-st.sidebar.markdown("### 🗺️ Exploration territoriale")
+with st.sidebar:
+    st.markdown("## 🌐 GeoInsight AI")
+    st.caption("EXPLORER LE QUÉBEC")
+    espace = st.radio(
+        "Navigation",
+        ["🏠 Accueil", "🧭 Exploration territoriale", "🗺️ Cartes thématiques",
+         "📊 Données et indicateurs", "🤖 Analyse IA", "⬇️ Téléchargements", "ℹ️ À propos"],
+        key="gi_espace",
+    )
+    st.divider()
+    st.markdown("### 🗺️ Navigation géographique")
 header()
 
 # Navigation en cascade, sans changer de vue.
@@ -142,12 +150,59 @@ except (OSError, ValueError, TypeError) as error_isq:
                "les cartes administratives restent accessibles.")
     st.caption(str(error_isq))
 
+if espace == "🤖 Analyse IA":
+    section("Analyse géospatiale et intelligence artificielle", "Chantier de recherche")
+    st.info("Le module prédictif n'est pas encore entraîné. Les cartes et les "
+            "indicateurs descriptifs sont disponibles dans les autres espaces.")
+    st.markdown("**Méthode prévue :** sélection des variables, comparaison des modèles, "
+                "validation spatiale par blocs et évaluation des incertitudes.")
+    st.stop()
+
+if espace == "ℹ️ À propos":
+    section("À propos de GeoInsight AI", "Sources et méthode")
+    st.markdown("**GeoInsight AI** est un projet de Business Intelligence géospatiale "
+                "centré sur la province de Québec. Les géométries administratives "
+                "proviennent du MRNF, les indicateurs régionaux de l'ISQ et les "
+                "quartiers de la Ville de Québec de données ouvertes municipales.")
+    st.info("Les fonctionnalités d'IA prédictive et de visualisation 3D réelle "
+            "ne sont pas encore disponibles.")
+    st.stop()
+
+if espace == "⬇️ Téléchargements":
+    section("Télécharger les données", "Sources et millésimes conservés")
+    st.download_button(
+        "⬇️ Indicateurs officiels ISQ — 17 régions (CSV)",
+        data=CSV_REGIONS_ISQ.read_bytes(),
+        file_name="geoinsight_indicateurs_regions_isq.csv",
+        mime="text/csv",
+    )
+    st.caption("Population 2025, 65 ans et plus 2025, faible revenu des familles "
+               "2023 et revenu disponible par habitant 2024.")
+    if CSV_REFERENCE.exists():
+        st.download_button(
+            "⬇️ Population des quartiers de Québec — 2021 (CSV)",
+            data=CSV_REFERENCE.read_bytes(),
+            file_name="geoinsight_quartiers_quebec_2021.csv",
+            mime="text/csv",
+        )
+    st.stop()
+
+with st.sidebar:
+    recherche_region = st.text_input(
+        "🔎 Rechercher une région",
+        placeholder="Ex. Capitale-Nationale",
+        key="gi_recherche_region",
+    )
 regional_options = {"Toute la province": None}
 regional_options.update({
     f'{r["properties"]["code"]} — {r["properties"]["nom"]}': r
     for r in regions
+    if not recherche_region or
+    normaliser(recherche_region) in normaliser(r["properties"]["nom"])
 })
 with st.sidebar:
+    if len(regional_options) == 1 and recherche_region:
+        st.caption("Aucune région trouvée. Corrige la recherche.")
     selection_region = st.selectbox("1. Région administrative", list(regional_options))
 region = regional_options[selection_region]
 visibles = regions if region is None else [region]
@@ -199,23 +254,26 @@ fond_carte = st.sidebar.radio(
 )
 
 if not quartiers_actifs:
-    section("Vue d'ensemble", "Exploration administrative du Québec")
+    section("Vue d'ensemble", "Votre tableau de bord d'intelligence territoriale")
     kpi1, kpi2, kpi3, kpi4 = st.columns(4, gap="small")
     ligne_region = indicateurs_isq.get(region["properties"]["code"]) if region is not None else None
-    kpi1.metric("Régions du Québec", len(regions))
-    kpi2.metric("Échelle actuelle",
-                {"Régions administratives": "Régions",
-                 "MRC et territoires équivalents": "MRC / TE",
-                 "Municipalités": "Municipalités"}.get(niveau, niveau))
-    kpi3.metric("Territoires affichés", len(visibles))
-    if indicateurs_isq:
-        population_kpi = (ligne_region["population_2025"] if ligne_region
-                          else sum(row["population_2025"] for row in indicateurs_isq.values()))
-        kpi4.metric("Population régionale 2025" if ligne_region else "Population Québec 2025",
-                    f"{population_kpi:,}".replace(",", " "))
-    else:
-        kpi4.metric("Population (2025)", "Indisponible")
-    section("Carte des territoires", "Plan et satellite · limites officielles")
+    with kpi1:
+        metric_card("🗺️", "Régions administratives", str(len(regions)),
+                    "Ensemble du Québec", "blue")
+    with kpi2:
+        metric_card("🏛️", "MRC / territoires équivalents",
+                    str(len(mrcs)) if region is not None and mrcs else "À explorer",
+                    "Sélectionnez une région", "cyan")
+    with kpi3:
+        metric_card("🏙️", "Municipalités",
+                    str(len(municipalites)) if region is not None and
+                    mrcs and mrc is not None and municipalites else "À explorer",
+                    "Choisissez une MRC", "violet")
+    with kpi4:
+        metric_card("📊", "Indicateurs disponibles",
+                    str(len(INDICATEURS)) if indicateurs_isq else "0",
+                    "Socioéconomiques vérifiés", "green")
+    section("Carte des territoires", "Limites officielles · Plan / Satellite")
     theme_regional = "Limites administratives"
     if region is None and indicateurs_isq:
         theme_regional = st.selectbox(
@@ -224,6 +282,7 @@ if not quartiers_actifs:
             format_func=lambda value: INDICATEURS[value][0]
             if value in INDICATEURS else value,
             key="carte_thematique_regions",
+            index=1 if espace == "🗺️ Cartes thématiques" else 0,
         )
 
     carte = (map_object(location=[52.5, -71.5], zoom=5, fond=fond_carte)
