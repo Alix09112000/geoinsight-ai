@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from app.regions import REGIONS
 from app.decoupages import charger_subdivisions
+from app.geo_shapes import construire_regions
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 GEOD = Geod(ellps="WGS84")
@@ -78,45 +79,15 @@ def charger_regions():
         "outSR": 4326,
         "returnGeometry": "true",
         "f": "geojson",
-        "geometryPrecision": 5,
-        "maxAllowableOffset": 0.002
+        "geometryPrecision": 6
     }, timeout=90)
     response.raise_for_status()
     payload = response.json()
     if payload.get("type") != "FeatureCollection" or not payload.get("features"):
         raise ValueError("Le service officiel n'a pas renvoyé de régions GeoJSON.")
-    # Le service peut renvoyer plusieurs morceaux de polygone pour une même région.
-    # Agrégation par code officiel, sans perte de géométries.
+    # Validation des anneaux et réparation topologique sans fabriquer de rectangles.
     noms_officiels = {code: nom for code, nom, _lat, _lon in REGIONS}
-    grouped = {}
-    for feature in payload["features"]:
-        props = feature.get("properties") or {}
-        raw_code = str(props.get("RES_CO_REG") or "").strip()
-        name = str(props.get("RES_NM_REG") or "").strip()
-        geometry = feature.get("geometry")
-        if not raw_code.isdigit() or not geometry:
-            continue
-        code = raw_code.zfill(2)
-        if geometry.get("type") not in ("Polygon", "MultiPolygon"):
-            continue
-        if code not in noms_officiels:
-            continue
-        group = grouped.setdefault(code, {"nom": noms_officiels[code], "parts": []})
-        # MultiPolygon brut : pas d'union topologique sur des sources parfois invalides.
-        coordinates = geometry.get("coordinates") or []
-        if geometry["type"] == "Polygon":
-            if coordinates:
-                group["parts"].append(coordinates)
-        else:
-            group["parts"].extend(part for part in coordinates if part)
-
-    regions = []
-    for code, group in sorted(grouped.items()):
-        if not group["parts"]:
-            continue
-        regions.append({"type": "Feature",
-                        "properties": {"code": code, "nom": group["nom"]},
-                        "geometry": {"type": "MultiPolygon", "coordinates": group["parts"]}})
+    regions = construire_regions(payload["features"], noms_officiels)
     if len(regions) != 17:
         raise ValueError(f"Nombre de régions inattendu : {len(regions)} (17 attendues).")
     return regions
@@ -248,7 +219,7 @@ if not quartiers_actifs:
         st.info("En préparation — aucune valeur simulée.")
         st.markdown("**Explorer davantage**")
         st.caption("Utilisez les sélections successives de la barre latérale.")
-    st.caption("Source des limites : MRNF, service de découpages administratifs du Québec.")
+    st.caption("Source : MRNF — Découpages administratifs du Québec. Géométries réparées et simplifiées pour affichage.")
     st.caption("Les quartiers sont disponibles pour la ville de Québec lorsqu’elle est sélectionnée; ailleurs, leur couverture dépend des données existantes.")
     st.stop()
 
