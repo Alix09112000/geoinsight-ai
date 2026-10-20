@@ -23,6 +23,7 @@ from app.name_matching import normaliser_nom, rapprochement
 from app.quartier_bi import preparer_couche
 from app.ui import header, inspector, map_object, section, legend_choropleth
 from app.quebec_mask import masque_hors_quebec, ajouter_masque
+from app.regional_bi import tableau_regions, comparer_regions
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 CSV_REFERENCE = ROOT / "data" / "indicateurs_quartiers_2021.csv"
@@ -100,6 +101,11 @@ def charger_regions():
 @st.cache_data(ttl=86400, show_spinner=False)
 def charger_masque_provincial(les_regions):
     return masque_hors_quebec(les_regions)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def calculer_superficies_regionales(regions_officielles):
+    return tableau_regions(regions_officielles)
 
 
 st.sidebar.markdown("## 🌐 GeoInsight AI")
@@ -246,6 +252,68 @@ if not quartiers_actifs:
         )
     st.caption("Source : MRNF — Découpages administratifs du Québec. Géométries réparées et simplifiées pour affichage.")
     st.caption("Les quartiers sont disponibles pour la ville de Québec lorsqu’elle est sélectionnée; ailleurs, leur couverture dépend des données existantes.")
+
+    # BI provinciale descriptive : aucun chiffre démographique extrapolé.
+    with st.expander("📊 Analyse comparative des 17 régions", expanded=False):
+        st.caption(
+            "Superficies géodésiques **estimées** à partir des limites cartographiques "
+            "simplifiées du MRNF (WGS84). Les valeurs ne constituent pas des "
+            "superficies légales officielles et peuvent inclure des plans d'eau."
+        )
+        try:
+            rows_regions = calculer_superficies_regionales(regions)
+        except (ValueError, TypeError, OverflowError) as analyse_error:
+            st.warning("Impossible de calculer les superficies régionales.")
+            st.caption(str(analyse_error))
+        else:
+            geo_table = pd.DataFrame(rows_regions)
+            metric_col = "Superficie géodésique estimée (km²)"
+            geo_sorted = geo_table.sort_values(metric_col, ascending=False)
+            c_top, c_count = st.columns(2)
+            c_top.metric("Plus grande superficie estimée",
+                         geo_sorted.iloc[0]["Région administrative"])
+            c_count.metric("Régions analysées", len(geo_sorted))
+            st.bar_chart(
+                geo_sorted.set_index("Région administrative")[[metric_col]],
+                horizontal=True,
+            )
+            st.dataframe(
+                geo_table, use_container_width=True, hide_index=True
+            )
+            st.download_button(
+                "⬇️ Exporter les superficies des régions (CSV)",
+                data=geo_table.to_csv(index=False).encode("utf-8-sig"),
+                file_name="geoinsight_regions_superficies_estimees.csv",
+                mime="text/csv",
+                key="export_regions_superficies",
+            )
+            st.markdown("##### Comparer deux régions")
+            codes_region = geo_table["Code régional"].tolist()
+            names_region = dict(zip(
+                geo_table["Code régional"],
+                geo_table["Région administrative"],
+            ))
+            first, second = st.columns(2)
+            with first:
+                code_a = st.selectbox(
+                    "Région A", codes_region,
+                    format_func=lambda code: names_region[code],
+                    key="regional_compare_a",
+                )
+            with second:
+                code_b = st.selectbox(
+                    "Région B", codes_region,
+                    index=1 if len(codes_region) > 1 else 0,
+                    format_func=lambda code: names_region[code],
+                    key="regional_compare_b",
+                )
+            if code_a != code_b:
+                st.dataframe(
+                    pd.DataFrame([comparer_regions(rows_regions, code_a, code_b)]),
+                    hide_index=True, use_container_width=True,
+                )
+            else:
+                st.info("Choisis deux régions différentes.")
     st.stop()
 
 section("Quartiers de la ville de Québec", "Données municipales et population du recensement 2021")
