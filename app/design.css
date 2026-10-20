@@ -1,0 +1,31 @@
+/* GeoInsight AI — responsive dashboard */
+:root { --geo-ink:#15283c; --geo-teal:#087f8c; --geo-sky:#e7f5f7; }
+html, body, [data-testid="stAppViewContainer"] {font-family:Inter, "Segoe UI", sans-serif;}
+[data-testid="stAppViewContainer"] {background:linear-gradient(180deg,#f6fafc 0%,#ffffff 54%);}
+[data-testid="stHeader"] {background:transparent;}
+[data-testid="stSidebar"] {background:#0e2537; border-right:1px solid #1e4053;}
+[data-testid="stSidebar"] * {color:#f0f7fb;}
+[data-testid="stSidebar"] [data-baseweb="select"] > div,
+[data-testid="stSidebar"] [data-baseweb="input"] > div {background:#fff; border:1px solid #bdd4df;border-radius:10px;}
+[data-testid="stSidebar"] [data-baseweb="select"] span,
+[data-testid="stSidebar"] [data-baseweb="input"] input {color:#182e3e;}
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {font-weight:600; font-size:.85rem; color:#d4e7ee;}
+[data-testid="stSidebar"] hr {border-color:#2a4657;}
+.block-container {max-width:1600px; padding-top:1.15rem; padding-bottom:2.2rem;}
+h1,h2,h3 {color:#132f40;letter-spacing:-.025em;}
+h1 {font-size:clamp(1.8rem,3vw,2.8rem)!important;line-height:1.12;}
+[data-testid="stMetric"] {background:#ffffff;border:1px solid #dfebee;border-radius:15px;padding:1.15rem 1.25rem;box-shadow:0 5px 22px rgba(20,54,70,.045);}
+[data-testid="stMetricLabel"] p {color:#567080;font-weight:650;font-size:.9rem;}
+[data-testid="stMetricValue"] {color:#103c4b;font-weight:720;letter-spacing:-.03em;}
+[data-testid="stAlert"] {border-radius:12px;}
+[data-testid="stTabs"] [role="tablist"] {gap:.5rem;border-bottom:1px solid #dce9ee;}
+[data-testid="stTabs"] button[role="tab"] {border-radius:9px 9px 0 0;font-weight:650;}
+[data-testid="stDataFrame"] {border-radius:12px;overflow:hidden;}
+[data-testid="stButton"] button,[data-testid="stDownloadButton"] button {border-radius:10px;font-weight:650;}
+iframe[title*="streamlit_folium"], iframe {border-radius:14px;}
+.geo-hero {padding:1.5rem 1.8rem; border-radius:18px;background:linear-gradient(110deg,#102d40,#126e7a);color:white;margin-bottom:1.1rem;box-shadow:0 12px 35px rgba(12,53,68,.12);}
+.geo-hero h1 {color:#fff!important;margin:0;font-size:clamp(1.6rem,2.6vw,2.55rem)!important;}
+.geo-hero p {color:#cceaf0;margin:.55rem 0 0;font-size:.95rem;}
+.geo-eyebrow {color:#8be0e1;font-size:.75rem;font-weight:800;letter-spacing:.14em;margin-bottom:.45rem;}
+.geo-section-label {color:#527482;font-size:.82rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:.7rem 0;}
+@media(max-width:768px){.block-container{padding-left:1rem;padding-right:1rem}.geo-hero{padding:1.1rem 1.2rem;}[data-testid="stMetric"]{padding:.7rem;}}
