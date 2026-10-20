@@ -22,6 +22,7 @@ from app.geo_shapes import construire_regions
 from app.name_matching import normaliser_nom, rapprochement
 from app.quartier_bi import preparer_couche
 from app.ui import header, inspector, map_object, section, legend_choropleth
+from app.quebec_mask import masque_hors_quebec, ajouter_masque
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 CSV_REFERENCE = ROOT / "data" / "indicateurs_quartiers_2021.csv"
@@ -96,6 +97,11 @@ def charger_regions():
         raise ValueError(f"Nombre de régions inattendu : {len(regions)} (17 attendues).")
     return regions
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def charger_masque_provincial(les_regions):
+    return masque_hors_quebec(les_regions)
+
+
 st.sidebar.markdown("## 🌐 GeoInsight AI")
 st.sidebar.caption("EXPLORER LE QUÉBEC")
 st.sidebar.markdown("### 🗺️ Exploration territoriale")
@@ -108,6 +114,15 @@ except (requests.RequestException, ValueError, TypeError) as error:
     st.error("Les limites des régions ne sont pas disponibles actuellement.")
     st.caption(str(error))
     st.stop()
+
+try:
+    masque_province, limites_province = charger_masque_provincial(regions)
+except Exception as erreur_masque:
+    # La carte ne doit jamais révéler les territoires voisins en cas d'erreur.
+    masque_province, limites_province = None, None
+    st.warning("Les limites provinciales ne peuvent pas être masquées actuellement : "
+               "affichage sans fond de carte en attendant leur réparation.")
+    st.caption(f"Détail technique du masque : {erreur_masque}")
 
 regional_options = {"Toute la province": None}
 regional_options.update({
@@ -177,7 +192,12 @@ if not quartiers_actifs:
     kpi4.metric("Indicateurs économiques", "En préparation")
     section("Carte des territoires", "Plan et satellite · limites officielles")
 
-    carte = map_object(location=[49.6, -71.4], zoom=5, fond=fond_carte)
+    carte = (map_object(location=[52.5, -71.5], zoom=5, fond=fond_carte)
+             if masque_province is not None else
+             folium.Map(location=[52.5, -71.5], zoom_start=5, tiles=None,
+                        control_scale=True))
+    carte.options["maxBounds"] = [[41.5, -87.0], [65.0, -51.0]]
+    carte.options["maxBoundsViscosity"] = 1.0
     if visibles:
         folium.GeoJson(
             {"type": "FeatureCollection", "features": visibles},
@@ -192,12 +212,19 @@ if not quartiers_actifs:
         # Calcul de cadrage à partir des coordonnées, sans union topologique GEOS.
         extent = [shape(f["geometry"]).bounds for f in visibles]
         if region is None:
-            # Vue provinciale plus lisible : cadrage conservant le Québec méridional.
-            carte.location = [49.6, -71.4]
-            carte.options["zoom"] = 5
+            # Cadrage sur l'ensemble du Québec (et jamais sur l'enveloppe du masque).
+            bounds = limites_province or (
+                min(x[0] for x in extent), min(x[1] for x in extent),
+                max(x[2] for x in extent), max(x[3] for x in extent)
+            )
+            carte.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]],
+                             padding_top_left=(18, 18),
+                             padding_bottom_right=(18, 18))
         else:
             carte.fit_bounds([[min(x[1] for x in extent), min(x[0] for x in extent)],
                               [max(x[3] for x in extent), max(x[2] for x in extent)]])
+    if masque_province is not None:
+        ajouter_masque(carte, masque_province)
     folium.LayerControl().add_to(carte)
     carte_col, details_col = st.columns([3.4, 1.25], gap="medium")
     with carte_col:
@@ -331,7 +358,12 @@ with tab_map:
     couche, valeurs = preparer_couche(
         visible, filtered.to_dict("records"), normaliser, metric or "population"
     )
-    m = map_object(location=[46.8139, -71.2080], zoom=11, fond=fond_carte)
+    m = (map_object(location=[46.8139, -71.2080], zoom=11, fond=fond_carte)
+         if masque_province is not None else
+         folium.Map(location=[46.8139, -71.2080], zoom_start=11, tiles=None,
+                    control_scale=True))
+    m.options["maxBounds"] = [[41.5, -87.0], [65.0, -51.0]]
+    m.options["maxBoundsViscosity"] = 1.0
 
     color_scale = None
     legende_active = False
@@ -391,6 +423,8 @@ with tab_map:
                 padding_bottom_right=(16, 16),
                 max_zoom=15,
             )
+    if masque_province is not None:
+        ajouter_masque(m, masque_province)
     folium.LayerControl().add_to(m)
     section("Visualisation géospatiale", "Clique sur un polygone pour ses informations")
     col_map, col_fiche = st.columns([3.35, 1.2], gap="small")
