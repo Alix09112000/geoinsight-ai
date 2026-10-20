@@ -121,12 +121,12 @@ def charger_regions():
         raise ValueError(f"Nombre de régions inattendu : {len(regions)} (17 attendues).")
     return regions
 
-st.sidebar.title("◈ GeoInsight AI")
-st.sidebar.caption("INTELLIGENCE TERRITORIALE  /  QUÉBEC")
-st.markdown("""<div class="geo-hero"><div class="geo-eyebrow">GEOINSIGHT AI · EXPLORATEUR</div>
-<h1>Comprendre les territoires. Éclairer les décisions.</h1>
-<p>Explorez les régions, les MRC et les municipalités du Québec sur une carte interactive.</p>
-</div>""", unsafe_allow_html=True)
+st.sidebar.markdown("## 🌎 GeoInsight AI")
+st.sidebar.caption("EXPLORATION TERRITORIALE")
+st.sidebar.markdown("### 🧭 Navigation géographique")
+st.markdown("""<div class="geo-hero"><div class="geo-eyebrow">GEOINSIGHT AI · QUÉBEC</div>
+<h1>Comprendre les territoires.<br>Éclairer les décisions.</h1>
+<p>Analyse géospatiale · Cartographie interactive · Intelligence territoriale</p></div>""", unsafe_allow_html=True)
 
 # Navigation en cascade, sans changer de vue.
 try:
@@ -189,11 +189,13 @@ if region is not None:
                     )
 
 if not quartiers_actifs:
-    st.markdown('<div class="geo-section-label">Vue cartographique · Exploration territoriale</div>', unsafe_allow_html=True)
-    st.caption("Affinez votre exploration avec les filtres géographiques dans le menu latéral.")
-    left, right = st.columns(2)
-    left.metric("Échelle géographique", niveau)
-    right.metric("Entités visibles", len(visibles))
+    st.markdown('<div class="geo-section-label">Tableau de bord territorial</div>', unsafe_allow_html=True)
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1.metric("Régions administratives", len(regions))
+    kpi2.metric("Niveau d’exploration", niveau)
+    kpi3.metric("Territoires affichés", len(visibles))
+    kpi4.metric("Données socioéconomiques", "À intégrer")
+    st.markdown('<div class="geo-section-label">Carte et détails du territoire</div>', unsafe_allow_html=True)
 
     carte = folium.Map(location=[49.6, -71.4], zoom_start=5,
                        tiles="OpenStreetMap", control_scale=True)
@@ -218,10 +220,29 @@ if not quartiers_actifs:
             carte.fit_bounds([[min(x[1] for x in extent), min(x[0] for x in extent)],
                               [max(x[3] for x in extent), max(x[2] for x in extent)]])
     folium.LayerControl().add_to(carte)
-    st_folium(carte, height=650, use_container_width=True, returned_objects=[])
+    carte_col, details_col = st.columns([3.4, 1.25], gap="medium")
+    with carte_col:
+        st_folium(carte, height=680, use_container_width=True, returned_objects=[])
+    with details_col:
+        st.markdown("#### 📍 Territoire sélectionné")
+        if len(visibles) == 1:
+            props = visibles[0]["properties"]
+            st.markdown(f"### {props['nom']}")
+            st.caption(f"Code administratif : {props['code']}")
+        else:
+            st.markdown(f"### {niveau}")
+            st.caption(f"{len(visibles)} territoires affichés")
+        st.divider()
+        st.markdown("**Niveau actuel**")
+        st.write(niveau)
+        st.markdown("**Données géographiques**")
+        st.success("Limites cartographiques disponibles")
+        st.markdown("**Indicateurs économiques et démographiques**")
+        st.info("En préparation — aucune valeur simulée.")
+        st.markdown("**Explorer davantage**")
+        st.caption("Utilisez les sélections successives de la barre latérale.")
     st.caption("Source des limites : MRNF, service de découpages administratifs du Québec.")
-    st.info("Le détail des quartiers est actuellement disponible pour la ville de Québec. "
-            "Les autres villes seront ajoutées lorsque des découpages fiables seront disponibles.")
+    st.caption("Les quartiers sont disponibles pour la ville de Québec lorsqu’elle est sélectionnée; ailleurs, leur couverture dépend des données existantes.")
     st.stop()
 
 st.caption("Navigation : Province → Capitale-Nationale → territoire équivalent → Québec → quartiers")
