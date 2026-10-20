@@ -9,6 +9,7 @@ import math
 
 from pyproj import Geod
 from shapely.geometry import shape
+from shapely.ops import orient
 
 WGS84 = Geod(ellps="WGS84")
 
@@ -18,7 +19,9 @@ def superficie_geodesique_km2(geometry):
     geom = shape(geometry)
     if geom.is_empty or geom.geom_type not in ("Polygon", "MultiPolygon"):
         raise ValueError("La géométrie doit être un polygone non vide.")
-    surface_m2, _ = WGS84.geometry_area_perimeter(geom)
+    # Convention géodésique : extérieur anti-horaire, trous horaires.
+    # Sans orientation, la surface des lacs peut s'ajouter à tort.
+    surface_m2, _ = WGS84.geometry_area_perimeter(orient(geom, sign=1.0))
     value = abs(surface_m2) / 1_000_000
     if not math.isfinite(value) or value <= 0:
         raise ValueError("La superficie géodésique calculée n'est pas valide.")
