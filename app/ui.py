@@ -123,3 +123,51 @@ def legend_choropleth(title, minimum, maximum):
         '<span>' + _safe(fmt(maximum)) + '</span>'
         '</div></div>', unsafe_allow_html=True,
     )
+
+
+def ajouter_fiche_sur_carte(carte, nom, niveau, code=None, population=None,
+                           population_annee=2025, superficie=None, densite=None,
+                           source="Données territoriales disponibles"):
+    """Fiche fixe dans l'iframe Folium, inspirée de la maquette originale.
+
+    Éléments purement informatifs : aucune action ou chiffre simulé.
+    Tous les textes des données externes sont échappés.
+    """
+    lignes = [("Échelle", niveau), ("Code", code),
+              (f"Population ({population_annee})", population),
+              ("Superficie", superficie), ("Densité", densite)]
+    details = "".join(
+        '<div class="gi-map-detail"><span>' + _safe(label) + '</span>'
+        '<strong>' + _safe(valeur) + '</strong></div>'
+        for label, valeur in lignes if valeur is not None
+    )
+    contenu = (
+        '<style>'
+        '.gi-map-panel{position:fixed;right:14px;top:16px;z-index:9999;'
+        'width:282px;max-height:calc(100vh - 35px);overflow:auto;'
+        'background:#fff;border:1px solid #c9e2ed;border-radius:14px;'
+        'box-shadow:0 8px 30px rgba(0,39,69,.23);font-family:Arial,sans-serif;}'
+        '.gi-map-top{background:linear-gradient(100deg,#00415e,#087d9d);'
+        'color:#fff;font-size:15px;font-weight:750;padding:17px 15px;}'
+        '.gi-map-body{padding:17px 14px;color:#183d53;}'
+        '.gi-map-sub{font-size:10px;letter-spacing:1px;color:#638497;font-weight:bold;}'
+        '.gi-map-title{font-size:20px;line-height:1.22;margin:10px 0 17px;'
+        'font-weight:800;overflow-wrap:anywhere;}'
+        '.gi-map-detail{display:flex;justify-content:space-between;gap:8px;'
+        'padding:10px 0;border-bottom:1px solid #edf2f5;font-size:12px;}'
+        '.gi-map-detail span{color:#6f8799;}'
+        '.gi-map-detail strong{text-align:right;color:#0b4663;overflow-wrap:anywhere;}'
+        '.gi-map-source{color:#7390a1;line-height:1.45;font-size:11px;margin-top:15px;}'
+        '@media(max-width:720px){.gi-map-panel{width:190px;right:8px;top:10px;}'
+        '.gi-map-body{padding:10px}.gi-map-title{font-size:15px}}'
+        '</style>'
+        '<aside class="gi-map-panel" aria-label="Fiche du territoire">'
+        '<div class="gi-map-top">📍 Fiche territoriale</div>'
+        '<div class="gi-map-body"><div class="gi-map-sub">TERRITOIRE SÉLECTIONNÉ</div>'
+        '<div class="gi-map-title">' + _safe(nom) + '</div>'
+        + details +
+        '<div class="gi-map-source">' + _safe(source) + '</div>'
+        '</div></aside>'
+    )
+    carte.get_root().html.add_child(folium.Element(contenu))
+    return carte
