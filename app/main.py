@@ -10,12 +10,13 @@ import pandas as pd
 import streamlit as st
 from pyproj import Geod
 from shapely.geometry import shape, mapping
-from app.regions import REGIONS
 from streamlit_folium import st_folium
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+from app.regions import REGIONS
+from app.decoupages import charger_subdivisions
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 GEOD = Geod(ellps="WGS84")
@@ -119,8 +120,6 @@ def charger_regions():
     if len(regions) != 17:
         raise ValueError(f"Nombre de régions inattendu : {len(regions)} (17 attendues).")
     return regions
-
-from app.decoupages import charger_subdivisions
 
 st.sidebar.title("◈ GeoInsight AI")
 st.sidebar.caption("INTELLIGENCE TERRITORIALE  /  QUÉBEC")
