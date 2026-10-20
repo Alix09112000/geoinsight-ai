@@ -21,7 +21,7 @@ from app.decoupages import charger_subdivisions
 from app.geo_shapes import construire_regions
 from app.name_matching import normaliser_nom, rapprochement
 from app.quartier_bi import preparer_couche
-from app.ui import header, inspector, map_object, section, legend_choropleth, metric_card
+from app.ui import header, inspector, map_object, section, legend_choropleth, metric_card, ajouter_fiche_sur_carte
 from app.quebec_mask import masque_hors_quebec, ajouter_masque
 from app.regional_bi import tableau_regions, comparer_regions
 from app.socioeconomic import INDICATEURS, charger_indicateurs_regions, joindre_indicateurs_regions, format_indicateur
@@ -391,42 +391,32 @@ if not quartiers_actifs:
                 ),
             ).add_to(carte)
     folium.LayerControl().add_to(carte)
-    carte_col, details_col = st.columns([3.4, 1.25], gap="medium")
-    with carte_col:
-        # La clé change au choix d'un territoire : Leaflet recadre alors la carte.
-        selection_key = "|".join([
-            selection_region,
-            locals().get("selection_mrc", ""),
-            locals().get("selection_mun", ""),
-        ])
-        st_folium(carte, height=690, use_container_width=True,
-                  returned_objects=[],
-                  key=f"province-map:{selection_key}:{fond_carte}:{theme_regional}")
-        if colormap_regions is not None:
-            legend_choropleth(
-                INDICATEURS[theme_regional][0],
-                colormap_regions.vmin, colormap_regions.vmax,
-            )
-    with details_col:
-        props = visibles[0]["properties"] if len(visibles) == 1 else None
-        inspector(
-            nom=props["nom"] if props else "Province de Québec",
-            niveau=niveau,
-            code=props["code"] if props else None,
-            population=(
-                f"{ligne_region['population_2025']:,}".replace(",", " ")
-                if ligne_region else None
-            ),
-            population_annee=2025,
-            note=(
-                "La population indiquée concerne la région administrative choisie "
-                "(2025), même si la carte affiche une MRC ou une municipalité. "
-                "Source : Institut de la statistique du Québec."
-                if ligne_region else
-                "Les quatre indicateurs socioéconomiques régionaux sont disponibles "
-                "dans le panneau d'analyse sous la carte. "
-                "Source : Institut de la statistique du Québec."
-            ),
+    props = visibles[0]["properties"] if len(visibles) == 1 else None
+    ajouter_fiche_sur_carte(
+        carte,
+        nom=props["nom"] if props else "Province de Québec",
+        niveau=niveau, code=props["code"] if props else None,
+        population=(
+            f"{ligne_region['population_2025']:,}".replace(",", " ")
+            if ligne_region is not None else None
+        ),
+        population_annee=2025,
+        source=("Population régionale 2025 (ISQ). Les données régionales "
+                "ne sont pas extrapolées aux MRC et municipalités."
+                if ligne_region else "Contours : MRNF · Statistiques : ISQ"),
+    )
+    selection_key = "|".join([
+        selection_region, locals().get("selection_mrc", ""),
+        locals().get("selection_mun", ""),
+    ])
+    st_folium(
+        carte, height=680, use_container_width=True, returned_objects=[],
+        key=f"province-map:{selection_key}:{fond_carte}:{theme_regional}",
+    )
+    if colormap_regions is not None:
+        legend_choropleth(
+            INDICATEURS[theme_regional][0],
+            colormap_regions.vmin, colormap_regions.vmax,
         )
     st.caption("Source : MRNF — Découpages administratifs du Québec. Géométries réparées et simplifiées pour affichage.")
     st.caption("Les quartiers sont disponibles pour la ville de Québec lorsqu’elle est sélectionnée; ailleurs, leur couverture dépend des données existantes.")
@@ -792,7 +782,7 @@ with tab_map:
     if masque_province is not None:
         ajouter_masque(m, masque_province)
     folium.LayerControl().add_to(m)
-    section("Visualisation géospatiale", "Clique sur un polygone pour ses informations")
+    section("Visualisation géospatiale", "Contours des quartiers · Fiche sur la carte")
     col_map, col_fiche = st.columns([3.35, 1.2], gap="small")
     with col_map:
         st_folium(
