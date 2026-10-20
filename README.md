@@ -78,3 +78,16 @@ Dans la vue provinciale, déplier **« 📊 Analyse comparative des 17 régions 
 - Il ne s'agit **pas** de superficies administratives officielles certifiées. Les plans d'eau et simplifications cartographiques modifient les surfaces; aucune population ou statistique économique n'est déduite des seuls polygones.
 
 Les prochains indicateurs (population par région, revenus, emploi, entreprises) seront intégrés uniquement après contrôle de leurs sources, millésimes et correspondances administratives.
+
+## Socioéconomie officielle ISQ — régions administratives
+
+La vue `Toute la province` contient des **cartes choroplèthes**, des comparaisons entre régions, des fiches et un export CSV à partir de `data/indicateurs_regions_isq.csv` :
+
+- Population totale au 1er juillet **2025** (habitants).
+- Part de la population de **65 ans ou plus en 2025** (%).
+- Taux de **faible revenu des familles en 2023** (%).
+- **Revenu disponible par habitant en 2024** (dollars, données provisoires).
+
+**Source :** [Institut de la statistique du Québec – Principaux indicateurs sur le Québec et ses régions](https://statistique.quebec.ca/fr/vitrine/region/03), fiches `/fr/vitrine/region/01` à `/17`. Données recopiées et vérifiées pour les 17 régions le 19 octobre 2026; c'est un instantané versionné et non une actualisation automatique. Les millésimes restent distincts et les sources détaillées figurent dans la colonne `source` du CSV. Certains indicateurs de l'Estrie et de Chaudière-Appalaches se rapportent à des découpages légèrement différents selon l'année : consulter les fiches ISQ avant les comparaisons sensibles.
+
+**Portée :** les données ISQ ci-dessus concernent **les régions administratives** uniquement, pas les MRC ni les municipalités; dans une vue locale, le chiffre régional est explicitement étiqueté « population régionale 2025 ». Ne pas confondre le taux de faible revenu des **familles** avec celui des **personnes**. Le revenu disponible par habitant ne représente ni un salaire ni un revenu médian.
