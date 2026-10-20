@@ -88,3 +88,22 @@ def inspector(nom, niveau, code=None, population=None, superficie=None,
 
 def info_unavailable():
     st.caption("Les indicateurs encore absents ne sont pas estimés ni simulés.")
+
+
+def legend_choropleth(title, minimum, maximum):
+    """Légende compacte hors de la carte, avec valeurs lisibles sans graduations superposées."""
+    if minimum is None or maximum is None or minimum >= maximum:
+        return
+    def fmt(value):
+        return f"{value:,.0f}".replace(",", " ")
+    middle = (minimum + maximum) / 2
+    st.markdown(
+        '<div class="gi-legend">'
+        '<div class="gi-legendheading">' + _safe(title) + '</div>'
+        '<div class="gi-legendbar"></div>'
+        '<div class="gi-legendlabels">'
+        '<span>' + _safe(fmt(minimum)) + '</span>'
+        '<span>' + _safe(fmt(middle)) + '</span>'
+        '<span>' + _safe(fmt(maximum)) + '</span>'
+        '</div></div>', unsafe_allow_html=True,
+    )
