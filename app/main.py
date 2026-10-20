@@ -25,6 +25,7 @@ from app.ui import header, inspector, map_object, section, legend_choropleth
 from app.quebec_mask import masque_hors_quebec, ajouter_masque
 from app.regional_bi import tableau_regions, comparer_regions
 from app.socioeconomic import INDICATEURS, charger_indicateurs_regions, joindre_indicateurs_regions, format_indicateur
+from app.regional_charts import graphique_indicateur_regions
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 CSV_REFERENCE = ROOT / "data" / "indicateurs_quartiers_2021.csv"
@@ -356,9 +357,11 @@ if not quartiers_actifs:
             titre_indicateur, _, annee_indicateur = INDICATEURS[champ_socio]
             frame_isq = pd.DataFrame(indicateurs_regionaux)
             ordre_isq = frame_isq.sort_values(champ_socio, ascending=False)
-            st.bar_chart(
-                ordre_isq.set_index("nom_region")[[champ_socio]],
-                horizontal=True,
+            st.altair_chart(
+                graphique_indicateur_regions(
+                    ordre_isq.to_dict("records"), champ_socio
+                ),
+                use_container_width=True,
             )
             st.caption(
                 f"Classement par : {titre_indicateur}. "
