@@ -41,3 +41,16 @@ Lien public attribué après le déploiement, sur un sous-domaine `streamlit.app
 5. Développer la prédiction spatiale et la validation par blocs spatiaux.
 
 Le périmètre du projet est la **province de Québec**; l’application ne prétend pas encore offrir une couverture provinciale complète.
+
+## Geospatial BI — quartiers de la ville de Québec
+
+La vue « Quartiers de Québec » permet désormais :
+
+- Carte choroplèthe interactive par **population (2021)** ou **densité (hab./km²)**, avec légende et fiches au clic.
+- Graphiques par quartier, export CSV des indicateurs et comparaison de deux quartiers.
+- Jeu de données de référence `data/indicateurs_quartiers_2021.csv`, chargé automatiquement en l'absence d'un fichier fourni par l'utilisateur. Un CSV déposé dans l'interface prévaut sur le fichier de référence.
+- Les superficies sont géodésiques (WGS84) et les densités sont calculées `population / superficie_du_polygone`, qui peut comprendre des plans d'eau.
+
+**Provenance et limites :** les populations par quartier sont les valeurs du jeu de référence saisi pour le Recensement 2021, renvoyant aux [portraits officiels de la Ville de Québec](https://www.ville.quebec.qc.ca/apropos/portrait/quelques_chiffres/quartiers/index.aspx). La somme des populations de quartiers (549 470) diffère de 10 habitants du total municipal publié (549 460), ce qui est compatible avec les règles d'arrondi du recensement. Ces valeurs n'ont pas été contrôlées une à une contre les 35 rapports lors de cette intégration; une validation documentaire complète reste à réaliser avant toute utilisation décisionnelle à enjeu.
+
+Les indicateurs manquants ne sont pas estimés. Les cartes choroplèthes sont descriptives et ne constituent pas des prédictions.
