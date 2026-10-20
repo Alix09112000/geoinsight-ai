@@ -25,7 +25,7 @@ from app.ui import header, inspector, map_object, section, legend_choropleth
 from app.quebec_mask import masque_hors_quebec, ajouter_masque
 from app.regional_bi import tableau_regions, comparer_regions
 from app.socioeconomic import INDICATEURS, charger_indicateurs_regions, joindre_indicateurs_regions, format_indicateur
-from app.regional_charts import graphique_indicateur_regions
+from app.regional_charts import graphique_indicateur_regions, graphique_barres
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 CSV_REFERENCE = ROOT / "data" / "indicateurs_quartiers_2021.csv"
@@ -357,11 +357,11 @@ if not quartiers_actifs:
             titre_indicateur, _, annee_indicateur = INDICATEURS[champ_socio]
             frame_isq = pd.DataFrame(indicateurs_regionaux)
             ordre_isq = frame_isq.sort_values(champ_socio, ascending=False)
-            st.altair_chart(
+            st.markdown(
                 graphique_indicateur_regions(
                     ordre_isq.to_dict("records"), champ_socio
                 ),
-                use_container_width=True,
+                unsafe_allow_html=True,
             )
             st.caption(
                 f"Classement par : {titre_indicateur}. "
@@ -433,9 +433,14 @@ if not quartiers_actifs:
             c_top.metric("Plus grande superficie estimée",
                          geo_sorted.iloc[0]["Région administrative"])
             c_count.metric("Régions analysées", len(geo_sorted))
-            st.bar_chart(
-                geo_sorted.set_index("Région administrative")[[metric_col]],
-                horizontal=True,
+            st.markdown(
+                graphique_barres(
+                    geo_sorted.to_dict("records"),
+                    "Région administrative", metric_col,
+                    "Superficies géodésiques estimées (km²)",
+                    formatter=lambda val: f"{val:,.0f} km²".replace(",", " "),
+                ),
+                unsafe_allow_html=True,
             )
             st.dataframe(
                 geo_table, use_container_width=True, hide_index=True
@@ -722,7 +727,22 @@ with tab_analysis:
                  .dropna().set_index("quartier")
                  .sort_values(indicateur, ascending=False))
     if not graphique.empty:
-        st.bar_chart(graphique, horizontal=True)
+        titres_quartiers = {
+            "superficie_km2": ("Superficie", "km²"),
+            "population": ("Population", "hab."),
+            "densite_hab_km2": ("Densité", "hab./km²"),
+            "revenu_median": ("Revenu médian", "$"),
+        }
+        titre_q, unite_q = titres_quartiers.get(indicateur, (indicateur, ""))
+        st.markdown(
+            graphique_barres(
+                graphique.reset_index().to_dict("records"),
+                "quartier", indicateur,
+                titre_q + (f" ({unite_q})" if unite_q else ""),
+                formatter=lambda val: f"{val:,.0f}".replace(",", " ") +
+                           (f" {unite_q}" if unite_q else ""),
+            ), unsafe_allow_html=True,
+        )
 
     st.divider()
     st.subheader("Comparer deux quartiers")
