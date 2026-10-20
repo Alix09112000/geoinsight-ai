@@ -11,6 +11,7 @@ import streamlit as st
 from pyproj import Geod
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
+from app.regions import REGIONS
 from streamlit_folium import st_folium
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,21 +90,22 @@ def charger_regions():
         raise ValueError("Le service officiel n'a pas renvoyé de régions GeoJSON.")
     # Le service peut renvoyer plusieurs morceaux de polygone pour une même région.
     # Agrégation par code officiel, sans perte de géométries.
+    noms_officiels = {code: nom for code, nom, _lat, _lon in REGIONS}
     grouped = {}
     for feature in payload["features"]:
         props = feature.get("properties") or {}
         raw_code = str(props.get("RES_CO_REG") or "").strip()
         name = str(props.get("RES_NM_REG") or "").strip()
         geometry = feature.get("geometry")
-        if not raw_code.isdigit() or not name or not geometry:
+        if not raw_code.isdigit() or not geometry:
             continue
         code = raw_code.zfill(2)
         polygon = shape(geometry)
         if polygon.is_empty or polygon.geom_type not in ("Polygon", "MultiPolygon"):
             continue
-        group = grouped.setdefault(code, {"nom": name, "geometries": []})
-        if group["nom"] != name:
-            raise ValueError(f"Noms incohérents pour la région {code}.")
+        if code not in noms_officiels:
+            continue
+        group = grouped.setdefault(code, {"nom": noms_officiels[code], "geometries": []})
         group["geometries"].append(polygon)
 
     regions = []
