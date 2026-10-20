@@ -43,3 +43,13 @@ iframe[title*="streamlit_folium"], iframe {border-radius:14px;}
 [data-testid="stVerticalBlock"] div[data-testid="stMetric"] {overflow:hidden;}
 [data-testid="stAppViewContainer"] {background:#f7fafc;}
 @media(max-width:900px){.geo-hero{padding:1.2rem}.geo-hero h1{font-size:1.7rem !important;}}
+
+/* Density and map-first refinement */
+.geo-hero {min-height:0!important;padding:1.05rem 1.5rem!important;margin-bottom:.65rem!important;}
+.geo-hero h1 {font-size:clamp(1.5rem,2vw,2rem)!important;}
+.geo-hero p {margin:.3rem 0 0!important;font-size:.85rem!important;}
+.geo-eyebrow {margin-bottom:.25rem!important;}
+[data-testid="stMetric"] {min-height:95px!important;padding:.75rem 1rem!important;}
+[data-testid="stMetricValue"] {font-size:clamp(1.05rem,1.35vw,1.45rem)!important;overflow-wrap:anywhere;}
+[data-testid="stMetricLabel"] p {font-size:.77rem!important;}
+.geo-section-label {margin:.35rem 0!important;}
