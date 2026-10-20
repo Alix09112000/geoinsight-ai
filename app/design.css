@@ -61,3 +61,11 @@ iframe[title*="streamlit_folium"],iframe{border-radius:12px;}
 [data-testid="stCaptionContainer"]{color:#627e91;}
 @media(max-width:1200px){.gi-tag{display:none}.gi-topline{gap:.7rem}.gi-brand{min-width:145px}.gi-inspector{min-height:0}.gi-inspectorhead{flex-wrap:wrap}}
 @media(max-width:800px){.block-container{padding:.55rem .7rem 1.5rem}.gi-topbar{padding:.7rem .85rem;min-height:75px}.gi-tagline{display:none}.gi-globe{font-size:2rem}.gi-brandname{font-size:1.25rem}.gi-section{flex-wrap:wrap}}
+
+/* Légende des cartes choroplèthes : sous la carte, jamais sur les images satellites. */
+.gi-legend{background:#fff;border:1px solid #dbe8f0;border-radius:10px;
+ padding:.65rem .9rem;margin:.4rem 0 .8rem;box-shadow:0 3px 10px rgba(17,57,81,.035);}
+.gi-legendheading{color:#36566b;font-size:.73rem;font-weight:750;margin-bottom:.44rem;}
+.gi-legendbar{height:9px;border-radius:12px;background:linear-gradient(90deg,#edf8f7 0%,#9fdbdc 34%,#46aab5 67%,#155b78 100%);}
+.gi-legendlabels{display:flex;justify-content:space-between;gap:1rem;font-size:.72rem;
+ font-variant-numeric:tabular-nums;color:#46687a;margin-top:.3rem;}
