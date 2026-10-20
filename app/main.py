@@ -67,8 +67,16 @@ def charger_indicateurs(source):
 st.title("🌎 GeoInsight AI — Ville de Québec")
 st.caption("Geospatial Business Intelligence · Cartographie et indicateurs territoriaux")
 if not GEOJSON.exists():
-    st.warning("Données absentes. Lance : py -3.11 -m etl.ingest_quartiers")
-    st.stop()
+    try:
+        from etl.ingest_quartiers import fetch_quartiers
+        with st.spinner("Chargement initial des quartiers depuis Données Québec…"):
+            geojson, _source_url = fetch_quartiers()
+            GEOJSON.parent.mkdir(parents=True, exist_ok=True)
+            GEOJSON.write_text(json.dumps(geojson, ensure_ascii=False), encoding="utf-8")
+    except Exception as error:
+        st.error("Impossible de charger les quartiers depuis Données Québec. Réessaie ultérieurement.")
+        st.caption(f"Détail technique : {error}")
+        st.stop()
 try:
     zones = charger_quartiers(str(GEOJSON), GEOJSON.stat().st_mtime)
 except (OSError, ValueError, json.JSONDecodeError) as error:
