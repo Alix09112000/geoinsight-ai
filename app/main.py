@@ -21,10 +21,7 @@ CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 GEOD = Geod(ellps="WGS84")
 
 st.set_page_config(page_title="GeoInsight AI | Intelligence territoriale", page_icon="🌎", layout="wide")
-st.markdown("""<style>
-.block-container{padding-top:1.2rem;max-width:1500px}
-div[data-testid="stMetric"]{background:#f0f7f8;border:1px solid #d5e8ea;border-radius:12px;padding:16px}
-</style>""", unsafe_allow_html=True)
+st.markdown("<style>" + (ROOT / "app" / "design.css").read_text(encoding="utf-8") + "</style>", unsafe_allow_html=True)
 
 def normaliser(value):
     value = unicodedata.normalize("NFKD", str(value).strip().casefold())
@@ -125,9 +122,12 @@ def charger_regions():
 
 from app.decoupages import charger_subdivisions
 
-st.sidebar.title("🧭 GeoInsight AI")
-st.sidebar.caption("Province de Québec")
-st.title("🌎 GeoInsight AI — Explorer le Québec")
+st.sidebar.title("◈ GeoInsight AI")
+st.sidebar.caption("INTELLIGENCE TERRITORIALE  /  QUÉBEC")
+st.markdown("""<div class="geo-hero"><div class="geo-eyebrow">GEOINSIGHT AI · EXPLORATEUR</div>
+<h1>Comprendre les territoires. Éclairer les décisions.</h1>
+<p>Explorez les régions, les MRC et les municipalités du Québec sur une carte interactive.</p>
+</div>""", unsafe_allow_html=True)
 
 # Navigation en cascade, sans changer de vue.
 try:
@@ -190,10 +190,11 @@ if region is not None:
                     )
 
 if not quartiers_actifs:
-    st.caption("Sélectionne une région, puis une MRC et une municipalité dans le menu latéral.")
+    st.markdown('<div class="geo-section-label">Vue cartographique · Exploration territoriale</div>', unsafe_allow_html=True)
+    st.caption("Affinez votre exploration avec les filtres géographiques dans le menu latéral.")
     left, right = st.columns(2)
-    left.metric("Niveau géographique", niveau)
-    right.metric("Territoires affichés", len(visibles))
+    left.metric("Échelle géographique", niveau)
+    right.metric("Entités visibles", len(visibles))
 
     carte = folium.Map(location=[49.6, -71.4], zoom_start=5,
                        tiles="OpenStreetMap", control_scale=True)
@@ -225,7 +226,7 @@ if not quartiers_actifs:
     st.stop()
 
 st.caption("Navigation : Province → Capitale-Nationale → territoire équivalent → Québec → quartiers")
-st.subheader("Quartiers de la ville de Québec")
+st.subheader("Analyse locale · Quartiers de Québec")
 st.caption("Plateforme de Business Intelligence géospatiale · Province de Québec")
 st.caption("Couverture visée : ensemble de la province de Québec · Données actuellement chargées : quartiers de la ville de Québec")
 if not GEOJSON.exists():
