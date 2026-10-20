@@ -89,3 +89,49 @@ iframe[title*="streamlit_folium"],iframe{border-radius:12px;}
 .gi-bars-row{grid-template-columns:minmax(110px,38%) minmax(60px,1fr) minmax(80px,24%);gap:6px}
 .gi-bars-name,.gi-bars-value{font-size:.68rem}
 }
+
+/* ===== Maquette de référence : GeoInsight AI / vue 2026 ===== */
+[data-testid="stAppViewContainer"] {background:#f5faff;}
+.block-container {max-width:1900px;padding-top:.5rem;padding-inline:1.05rem;}
+[data-testid="stSidebar"] {background:linear-gradient(180deg,#eff9ff 0%,#fff 55%);
+ border-right:1px solid #d5e6ef;}
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] {
+ gap:.17rem;padding:.3rem;border-radius:11px;background:#fff;}
+[data-testid="stSidebar"] [data-testid="stRadio"] label {
+ font-size:.81rem;padding:.28rem .35rem;line-height:1.25;border-radius:9px;}
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {color:#234963;}
+.gi-topbar{margin:-.4rem -.5rem .9rem;border-radius:0 0 15px 15px;
+ min-height:110px;padding:1.2rem 1.6rem;
+ background:linear-gradient(100deg,#003b5e 0%,#065781 55%,#117caf 100%);
+ box-shadow:0 7px 25px rgba(3,64,96,.14);}
+.gi-topbar::before{
+ content:"";position:absolute;right:14%;bottom:0;width:28%;
+ height:72%;pointer-events:none;opacity:.11;
+ background:repeating-linear-gradient(90deg,transparent,transparent 15px,#fff 16px,#fff 18px);
+ clip-path:polygon(0 100%,0 65%,7% 65%,7% 35%,11% 35%,11% 65%,23% 65%,23% 14%,30% 14%,30% 58%,38% 58%,38% 24%,45% 24%,45% 62%,51% 62%,51% 0,58% 62%,72% 62%,72% 41%,80% 41%,80% 70%,91% 70%,91% 55%,100% 55%,100% 100%);}
+.gi-topline {min-height:64px;}
+.gi-brandname{font-size:1.75rem;font-weight:850;}
+.gi-tagline strong{font-size:1.03rem;}
+.gi-brand {min-width:180px;}
+.gi-kpi{display:flex;align-items:center;gap:.85rem;min-height:117px;
+ background:#fff;padding:1rem 1.05rem;border:1px solid #deebf3;
+ border-radius:13px;box-shadow:0 5px 14px rgba(10,59,88,.085);width:100%;}
+.gi-kpi-icon{align-self:flex-start;display:flex;align-items:center;justify-content:center;
+ width:42px;height:42px;border-radius:12px;background:#e2f4ff;font-size:1.45rem;flex-shrink:0;}
+.gi-kpi-content{display:flex;flex-direction:column;gap:.13rem;min-width:0;}
+.gi-kpi-title{font-size:.75rem;font-weight:800;line-height:1.2;color:#17415a;}
+.gi-kpi-content strong{font-size:clamp(1.2rem,1.9vw,1.85rem);color:#0a3d5e;letter-spacing:-.04em;}
+.gi-kpi-content small{font-size:.68rem;color:#6b8497;line-height:1.2;}
+.gi-kpi-cyan .gi-kpi-icon{background:#dcf6fd;}
+.gi-kpi-green .gi-kpi-icon{background:#def8ec;}
+.gi-kpi-violet .gi-kpi-icon{background:#eeecff;}
+.gi-section{margin:.68rem 0 .5rem;}
+.gi-section strong{font-size:.97rem;color:#0a3958;}
+.gi-inspector{box-shadow:0 8px 21px rgba(8,51,72,.10);border:1px solid #d7e9f1;}
+.gi-inspectorhead{background:linear-gradient(90deg,#034369,#0c7197);}
+[data-testid="stVerticalBlock"] [data-testid="stMetric"] {min-height:95px;}
+@media(max-width:950px){
+ .gi-kpi{padding:.6rem .7rem;min-height:90px;gap:.45rem;}
+ .gi-kpi-icon{width:30px;height:30px;font-size:1rem;}
+ .gi-brandname{font-size:1.35rem;}
+}
