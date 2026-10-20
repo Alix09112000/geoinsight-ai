@@ -3,12 +3,13 @@ from pathlib import Path
 import sys
 import json
 import unicodedata
+import requests
 
 import folium
 import pandas as pd
 import streamlit as st
 from pyproj import Geod
-from shapely.geometry import shape
+from shapely.geometry import shape, mapping
 from streamlit_folium import st_folium
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,33 +68,93 @@ def charger_indicateurs(source):
                 raise ValueError("Valeur négative : " + field)
     return df
 
-from app.regions import REGIONS
+SERVICE_REGIONS = ("https://servicescarto.mern.gouv.qc.ca/pes/rest/services/"
+                   "Territoire/SDA_WMS/MapServer/0/query")
+
+@st.cache_data(ttl=86400, show_spinner="Chargement des limites officielles…")
+def charger_regions():
+    response = requests.get(SERVICE_REGIONS, params={
+        "where": "1=1",
+        "outFields": "RES_CO_REG,RES_NM_REG,RES_VA_SUP",
+        "outSR": 4326,
+        "returnGeometry": "true",
+        "f": "geojson",
+        "geometryPrecision": 5,
+        "maxAllowableOffset": 0.002
+    }, timeout=90)
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("type") != "FeatureCollection" or not payload.get("features"):
+        raise ValueError("Le service officiel n'a pas renvoyé de régions GeoJSON.")
+    regions = []
+    codes = set()
+    for feature in payload["features"]:
+        props = feature.get("properties") or {}
+        code = str(props.get("RES_CO_REG") or "").strip().zfill(2)
+        name = str(props.get("RES_NM_REG") or "").strip()
+        geom = feature.get("geometry")
+        if not name or not geom:
+            continue
+        polygon = shape(geom)
+        if polygon.is_empty:
+            continue
+        if code in codes:
+            raise ValueError("Codes régionaux dupliqués dans le service.")
+        codes.add(code)
+        # Simplification pour limiter le volume transféré au navigateur.
+        feature["geometry"] = mapping(polygon.simplify(0.006, preserve_topology=True))
+        feature["properties"] = {"code": code, "nom": name}
+        regions.append(feature)
+    if len(regions) != 17:
+        raise ValueError(f"Nombre de régions inattendu : {len(regions)} (17 attendues).")
+    return regions
 
 with st.sidebar:
     st.markdown("### 🗺️ Échelle d’exploration")
     vue = st.radio("Vue", ["Québec — régions", "Ville de Québec — quartiers"], index=0)
 
 if vue == "Québec — régions":
-    st.title("🌎 GeoInsight AI — Québec")
-    st.caption("Exploration des 17 régions administratives · Repères géographiques indicatifs")
-    options = ["Toutes les régions"] + [f"{code} — {name}" for code, name, lat, lon in REGIONS]
-    choix = st.selectbox("Région administrative", options)
-    regions_visibles = REGIONS if choix == "Toutes les régions" else [
-        row for row in REGIONS if f"{row[0]} — {row[1]}" == choix
+    st.title("🌎 GeoInsight AI — Province de Québec")
+    st.caption("Limites officielles des 17 régions administratives")
+    try:
+        regions = charger_regions()
+    except (requests.RequestException, ValueError, TypeError) as error:
+        st.error("Impossible de charger les limites officielles pour le moment.")
+        st.caption(str(error))
+        st.stop()
+
+    regions.sort(key=lambda f: f["properties"]["code"])
+    options = ["Toutes les régions"] + [
+        f'{r["properties"]["code"]} — {r["properties"]["nom"]}' for r in regions
     ]
-    st.metric("Régions administratives", len(REGIONS))
-    st.info("Les marqueurs sont des points de navigation approximatifs, pas des limites administratives. "
-            "Les polygones officiels, les MRC et les municipalités seront intégrés dans une prochaine version.")
-    provinciale = folium.Map(location=[51.1, -71.5], zoom_start=5, tiles="OpenStreetMap",
-                            control_scale=True)
-    for code, name, lat, lon in regions_visibles:
-        folium.Marker([lat, lon], tooltip=f"{code} — {name}",
-                      popup=f"Région administrative : {name}").add_to(provinciale)
-    if len(regions_visibles) == 1:
-        provinciale.location = [regions_visibles[0][2], regions_visibles[0][3]]
-        provinciale.options["zoom"] = 8
-    st_folium(provinciale, height=640, use_container_width=True, returned_objects=[])
-    st.caption("Référence : Gouvernement du Québec, Portrait des régions administratives.")
+    choix = st.selectbox("Région administrative", options)
+    visibles = regions if choix == "Toutes les régions" else [
+        r for r in regions
+        if f'{r["properties"]["code"]} — {r["properties"]["nom"]}' == choix
+    ]
+    c1, c2 = st.columns(2)
+    c1.metric("Régions du Québec", len(regions))
+    c2.metric("Régions affichées", len(visibles))
+    carte = folium.Map(location=[51.2, -71.4], zoom_start=5,
+                       tiles="OpenStreetMap", control_scale=True)
+    folium.GeoJson(
+        {"type": "FeatureCollection", "features": visibles},
+        name="Régions administratives",
+        tooltip=folium.GeoJsonTooltip(fields=["code", "nom"], aliases=["Code :", "Région :"]),
+        style_function=lambda _: {"color": "#087f8c", "weight": 1.7,
+                                  "fillColor": "#21a0a6", "fillOpacity": 0.16},
+        highlight_function=lambda _: {"color": "#ff9d2e", "weight": 3,
+                                      "fillOpacity": 0.36},
+    ).add_to(carte)
+    polygons = [shape(f["geometry"]).bounds for f in visibles]
+    carte.fit_bounds([[min(b[1] for b in polygons), min(b[0] for b in polygons)],
+                      [max(b[3] for b in polygons), max(b[2] for b in polygons)]])
+    folium.LayerControl().add_to(carte)
+    st_folium(carte, height=650, use_container_width=True, returned_objects=[])
+    st.caption("Source : Gouvernement du Québec, MRNF — Découpages administratifs, "
+               "service ArcGIS REST (simplification géométrique pour l'affichage).")
+    st.info("Prochaine étape : MRC et municipalités. Les données de quartiers de Québec "
+            "restent accessibles dans la deuxième vue.")
     st.stop()
 
 st.title("🌎 GeoInsight AI")
