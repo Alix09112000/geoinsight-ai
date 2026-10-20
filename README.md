@@ -1,6 +1,6 @@
-# GeoInsight AI — Ville de Québec
+# GeoInsight AI — Intelligent Geospatial Business Intelligence
 
-Plateforme personnelle de **Business Intelligence géospatiale** (version 2.0). Elle affiche les quartiers de Québec, calcule les superficies géodésiques et permet de comparer des indicateurs territoriaux importés à partir de sources vérifiées.
+**Vision :** plateforme extensible de Business Intelligence géospatiale, de prédiction spatiale et d’aide à la décision pour les villes et territoires à l’échelle internationale.\n\n**Pilote disponible :** ville de Québec, Canada (version 2.0). Les premiers outils affichent ses quartiers, calculent des superficies géodésiques et permettent de comparer des indicateurs issus de données vérifiées. L’interface ne prétend pas encore gérer plusieurs villes.
 
 ## Installation (Windows)
 
@@ -31,3 +31,14 @@ Source : Ville de Québec / Données Québec. Projet expérimental, sans affilia
 4. L'application télécharge les quartiers au premier démarrage; aucune base externe n'est obligatoire pour la version cartographique.
 
 Lien public attribué après le déploiement, sur un sous-domaine `streamlit.app`.
+
+## Feuille de route multi-territoires
+
+- Référentiel des territoires (pays → régions → villes → subdivisions administratives), avec identifiants stables et métadonnées de sources.
+- Connecteurs de données par pays/ville; harmonisation des coordonnées, unités, dates et définitions.
+- Schémas spatiaux génériques dans PostGIS plutôt que des tables propres aux quartiers de Québec.
+- Comparaisons territoriales uniquement sur des indicateurs méthodologiquement comparables.
+- Modèles prédictifs, validation spatiale et indicateurs d’incertitude.
+- Accès multilingue et visualisations 2D/3D.
+
+L’extension multi-villes est **planifiée, non encore développée**.
