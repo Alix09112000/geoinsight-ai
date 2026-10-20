@@ -10,6 +10,7 @@ import pandas as pd
 import streamlit as st
 from pyproj import Geod
 from shapely.geometry import shape, mapping
+from shapely.ops import unary_union
 from streamlit_folium import st_folium
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -86,25 +87,32 @@ def charger_regions():
     payload = response.json()
     if payload.get("type") != "FeatureCollection" or not payload.get("features"):
         raise ValueError("Le service officiel n'a pas renvoyé de régions GeoJSON.")
-    regions = []
-    codes = set()
+    # Le service peut renvoyer plusieurs morceaux de polygone pour une même région.
+    # Agrégation par code officiel, sans perte de géométries.
+    grouped = {}
     for feature in payload["features"]:
         props = feature.get("properties") or {}
-        code = str(props.get("RES_CO_REG") or "").strip().zfill(2)
+        raw_code = str(props.get("RES_CO_REG") or "").strip()
         name = str(props.get("RES_NM_REG") or "").strip()
-        geom = feature.get("geometry")
-        if not name or not geom:
+        geometry = feature.get("geometry")
+        if not raw_code.isdigit() or not name or not geometry:
             continue
-        polygon = shape(geom)
-        if polygon.is_empty:
+        code = raw_code.zfill(2)
+        polygon = shape(geometry)
+        if polygon.is_empty or polygon.geom_type not in ("Polygon", "MultiPolygon"):
             continue
-        if code in codes:
-            raise ValueError("Codes régionaux dupliqués dans le service.")
-        codes.add(code)
-        # Simplification pour limiter le volume transféré au navigateur.
-        feature["geometry"] = mapping(polygon.simplify(0.006, preserve_topology=True))
-        feature["properties"] = {"code": code, "nom": name}
-        regions.append(feature)
+        group = grouped.setdefault(code, {"nom": name, "geometries": []})
+        if group["nom"] != name:
+            raise ValueError(f"Noms incohérents pour la région {code}.")
+        group["geometries"].append(polygon)
+
+    regions = []
+    for code, group in sorted(grouped.items()):
+        joined = unary_union(group["geometries"])
+        simplified = joined.simplify(0.006, preserve_topology=True)
+        regions.append({"type": "Feature",
+                        "properties": {"code": code, "nom": group["nom"]},
+                        "geometry": mapping(simplified)})
     if len(regions) != 17:
         raise ValueError(f"Nombre de régions inattendu : {len(regions)} (17 attendues).")
     return regions
