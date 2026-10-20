@@ -38,11 +38,12 @@ def tableau_regions(features):
         nom = str(properties.get("nom") or "").strip()
         if not code.isdigit() or not nom or not feature.get("geometry"):
             raise ValueError("Code, nom ou géométrie de région manquant.")
+        code = code.zfill(2)
         if code in codes:
             raise ValueError(f"Code régional dupliqué : {code}")
         codes.add(code)
         lignes.append({
-            "Code régional": code.zfill(2),
+            "Code régional": code,
             "Région administrative": nom,
             "Superficie géodésique estimée (km²)": round(
                 superficie_geodesique_km2(feature["geometry"]), 1
