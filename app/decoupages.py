@@ -17,7 +17,7 @@ def charger_subdivisions(niveau: str, parent_code: str):
     if not parent_code.isdigit() or len(parent_code) not in (2, 3):
         raise ValueError("Code de territoire invalide.")
     layer, code_field, name_field, parent_field = LAYERS[niveau]
-    if (niveau == "mrc" and len(parent_code) != 2) or (niveau == "municipalite" and len(parent_code) != 3):
+    if (niveau == "mrc" and len(parent_code) != 2) or (niveau == "municipalite" and len(parent_code) not in (2, 3)):
         raise ValueError("Longueur du code parent incorrecte.")
 
     response = requests.get(f"{BASE}/{layer}/query", params={
