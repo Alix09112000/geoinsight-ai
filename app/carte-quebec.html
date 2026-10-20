@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="_ds/modernist-1782004b-9647-4402-badb-4c52c55bfeae/styles.css">
+<style>
+html,body,#map{margin:0;height:100%;background:#f3f2f2;font-family:var(--font-body)}
+.leaflet-tile-pane{filter:grayscale(1) contrast(.9) brightness(1.05)}
+.leaflet-container a{color:#095797}
+.leaflet-bar,.leaflet-bar a{border-radius:0!important}
+.leaflet-bar{border:2px solid #201e1d!important;box-shadow:none!important}
+.code{background:transparent;border:0;box-shadow:none;font-weight:800;font-size:13px;padding:0}
+.code::before{display:none}
+#msg{position:absolute;inset:0;display:flex;align-items:center;padding:24px;font-size:14px;z-index:999;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="msg">Chargement des limites officielles…</div>
+<script>
+const SRC = 'https://servicescarto.mern.gouv.qc.ca/pes/rest/services/Territoire/SDA_WMS/MapServer/0/query?where=1%3D1&outFields=RES_CO_REG,RES_NM_REG&outSR=4326&returnGeometry=true&f=geojson&geometryPrecision=3&maxAllowableOffset=0.01';
+const map = L.map('map', { zoomSnap: 0.25, attributionControl: true }).setView([52, -71], 4.5);
+map.attributionControl.setPrefix(false).addAttribution('Limites : MRNF Québec');
+const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Imagerie © Esri', maxZoom: 18 });
+let layer, styleState = { selected: '03', fills: {} }, byCode = {};
+const code = f => String(f.properties.RES_CO_REG).padStart(2, '0');
+function paint() {
+  if (styleState.basemap === 'satellite') { if (!map.hasLayer(satLayer)) satLayer.addTo(map); } else if (map.hasLayer(satLayer)) map.removeLayer(satLayer);
+  if (!layer) return;
+  layer.eachLayer(l => {
+    const c = code(l.feature), sel = c === styleState.selected;
+    l.setStyle({ fillColor: styleState.fills[c] || '#dcdad9', fillOpacity: styleState.basemap === 'satellite' ? 0.45 : 0.82, color: sel ? '#201e1d' : '#f3f2f2', weight: sel ? 3 : 1 });
+    if (sel) l.bringToFront();
+    const t = l.getTooltip(); if (t && t.getElement()) t.getElement().style.color = styleState.ink?.[c] || '#201e1d';
+  });
+}
+const QSRC = 'https://www.donneesquebec.ca/recherche/dataset/5b1ae6f2-6719-46df-bd2f-e57a7034c917/resource/436c85aa-88d9-4e57-9095-b72b776a71a0/download/vdq-quartier.geojson';
+const qnorm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[—–-]/g,'-').replace(/^l'/,'').replace(/\s+/g,' ').trim();
+let qLayer = null, qPromise = null, qShown = null;
+function loadQuartiers() {
+  if (qPromise) return qPromise;
+  let inj = null; try { inj = window.__QUARTIERS || parent.__QUARTIERS || (parent.parent && parent.parent.__QUARTIERS); } catch (e) {}
+  qPromise = (inj ? Promise.resolve(inj) : fetch(QSRC).then(r => r.json())).then(gj => {
+    qLayer = L.geoJSON(gj, { onEachFeature: (f, l) => {
+      l._cle = f.properties.CLE || qnorm(f.properties.NOM);
+      l.bindTooltip(f.properties.NOM, { direction: 'top', className: 'code' });
+      l.on('click', () => parent.postMessage({ type: 'geo-quartier', cle: l._cle }, '*'));
+    } });
+    return qLayer;
+  });
+  return qPromise;
+}
+function paintQuartiers(s) {
+  if (!s.showQuartiers) { if (qLayer && map.hasLayer(qLayer)) map.removeLayer(qLayer); qShown = null; return; }
+  loadQuartiers().then(ql => {
+    if (!map.hasLayer(ql)) ql.addTo(map);
+    let target = null;
+    ql.eachLayer(l => {
+      const on = l._cle === s.quartierCle;
+      if (on) target = l;
+      l.setStyle({ fillColor: on ? '#095797' : '#f3f2f2', fillOpacity: on ? 0.9 : 0.55, color: '#201e1d', weight: on ? 3 : 1 });
+      if (on) l.bringToFront();
+    });
+    const key = s.quartierCle || '__ville';
+    if (target) { const ce = target.getBounds().getCenter(); parent.postMessage({ type: 'geo-center', lat: ce.lat, lon: ce.lng }, '*'); }
+    if (qShown !== key) { qShown = key; map.flyToBounds((target || ql).getBounds(), { padding: [30, 30], maxZoom: 14, duration: 0.6 }); }
+  }).catch(() => {});
+}
+function inRing(pt, ring) { let c = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const [xi, yi] = ring[i], [xj, yj] = ring[j]; if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) c = !c; } return c; }
+function inGeom(pt, g) { const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []; return polys.some(p => inRing(pt, p[0]) && !p.slice(1).some(h => inRing(pt, h))); }
+let marker = null, pendingPoint = null;
+function locatePoint(p) {
+  if (!layer) { pendingPoint = p; return; }
+  const { lat, lon, label } = p;
+  const pt = [lon, lat];
+  if (marker) map.removeLayer(marker);
+  marker = L.circleMarker([lat, lon], { radius: 8, color: '#201e1d', weight: 3, fillColor: '#f3f2f2', fillOpacity: 1 }).addTo(map).bindTooltip(label || '', { direction: 'top', className: 'code', permanent: true });
+  let code = null; if (layer) layer.eachLayer(l => { if (!code && inGeom(pt, l.feature.geometry)) code = code_(l.feature); });
+  const done = qc => { parent.postMessage({ type: 'geo-located', code, quartierCle: qc }, '*'); setTimeout(() => map.flyTo([lat, lon], Math.max(map.getZoom(), qc ? 14 : 11), { duration: 0.6 }), 700); };
+  if (code === '03') loadQuartiers().then(ql => { let qc = null; ql.eachLayer(l => { if (!qc && inGeom(pt, l.feature.geometry)) qc = l._cle; }); done(qc); }).catch(() => done(null));
+  else done(null);
+}
+const code_ = f => String(f.properties.RES_CO_REG).padStart(2, '0');
+window.addEventListener('message', e => {
+  if (e.data?.type === 'geo-reset') { if (marker) { map.removeLayer(marker); marker = null; } if (qLayer && map.hasLayer(qLayer)) map.removeLayer(qLayer); qShown = null; if (layer) map.flyToBounds(layer.getBounds(), { padding: [10, 10], duration: 0.6 }); return; }
+  if (e.data?.type === 'geo-point') return locatePoint(e.data);
+  if (e.data?.type !== 'geo-style') return;
+  const prev = styleState.selected;
+  styleState = e.data; paint();
+  paintQuartiers(styleState);
+  if (!styleState.showQuartiers && prev !== styleState.selected && byCode[styleState.selected] && !e.data.noFly) map.flyToBounds(byCode[styleState.selected].getBounds(), { padding: [30, 30], maxZoom: 8, duration: 0.6 });
+});
+let injected = null; try { injected = window.__GEOJSON || parent.__GEOJSON || (parent.parent && parent.parent.__GEOJSON); } catch (e) {}
+(injected ? Promise.resolve(injected) : fetch(SRC).then(r => r.json())).then(gj => {
+  document.getElementById('msg').remove();
+  layer = L.geoJSON(gj, {
+    onEachFeature: (f, l) => {
+      const c = code(f), b = l.getBounds(), a = (b.getEast()-b.getWest())*(b.getNorth()-b.getSouth());
+      if (!byCode[c] || a > byCode[c]._a) { byCode[c] = l; l._a = a; }
+      l.on('click', () => parent.postMessage({ type: 'geo-select', code: c }, '*'));
+      l.on('mouseover', () => l.setStyle({ fillOpacity: 1 }));
+      l.on('mouseout', () => l.setStyle({ fillOpacity: 0.82 }));
+    }
+  }).addTo(map);
+  Object.entries(byCode).forEach(([c, l]) => { if (c !== '06' && c !== '13') l.bindTooltip(c, { permanent: true, direction: 'center', className: 'code' }); });
+  layer.eachLayer(l => { const c = code(l.feature); if (c === '06' || c === '13') l.bindTooltip(c, { direction: 'top', className: 'code' }); });
+  map.fitBounds(layer.getBounds(), { padding: [10, 10] });
+  paint();
+  parent.postMessage({ type: 'geo-ready' }, '*');
+  if (pendingPoint) { const p = pendingPoint; pendingPoint = null; setTimeout(() => locatePoint(p), 300); }
+}).catch(() => { document.getElementById('msg').textContent = 'Impossible de charger les limites des régions (service MRNF).'; });
+parent.postMessage({ type: 'geo-ready' }, '*');
+</script>
+</body>
+</html>

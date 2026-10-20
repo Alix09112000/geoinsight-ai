@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+html,body,#map{margin:0;height:100%;background:#f3f2f2;font-family:Archivo,system-ui,sans-serif}
+#msg{position:absolute;inset:0;display:flex;align-items:center;padding:24px;font-size:14px;z-index:9;pointer-events:none}
+#hint{position:absolute;left:12px;bottom:12px;background:#f3f2f2;border:2px solid #201e1d;padding:6px 10px;font-size:12px;z-index:5}
+.maplibregl-ctrl-group{border-radius:0!important;border:2px solid #201e1d;box-shadow:none!important}
+.maplibregl-popup-content{border-radius:0;border:2px solid #201e1d;font-family:Archivo,system-ui,sans-serif;font-size:13px;padding:8px 10px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="msg">Chargement de la carte 3D…</div>
+<div id="hint">Hauteur = indicateur choisi · Clic droit + glisser (ou Ctrl + glisser) pour pivoter</div>
+<script>
+const SRC = 'https://servicescarto.mern.gouv.qc.ca/pes/rest/services/Territoire/SDA_WMS/MapServer/0/query?where=1%3D1&outFields=RES_CO_REG,RES_NM_REG&outSR=4326&returnGeometry=true&f=geojson&geometryPrecision=3&maxAllowableOffset=0.01';
+const map = new maplibregl.Map({
+  container: 'map', attributionControl: false,
+  style: { version: 8, sources: {
+      sat: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, attribution: 'Imagerie © Esri' } },
+    layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f3f2f2' } },
+             { id: 'sat', type: 'raster', source: 'sat', layout: { visibility: 'none' } }] },
+  center: [-71.5, 50.5], zoom: 3.6, pitch: 55, bearing: -15, maxPitch: 75
+});
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Limites : MRNF Québec' }));
+let gj = null, state = { fills: {}, heights: {}, selected: '03', basemap: 'plan' };
+const code = f => String(f.properties.RES_CO_REG).padStart(2, '0');
+function apply() {
+  if (!gj || !map.getSource('reg')) return;
+  gj.features.forEach(f => { const c = code(f); f.properties.code = c; f.properties.color = state.fills[c] || '#dcdad9'; f.properties.h = (state.heights[c] ?? 0.05) * 260000 + 4000; f.properties.sel = c === state.selected ? 1 : 0; });
+  map.getSource('reg').setData(gj);
+  map.setLayoutProperty('sat', 'visibility', state.basemap === 'satellite' ? 'visible' : 'none');
+  map.setPaintProperty('ext', 'fill-extrusion-opacity', state.basemap === 'satellite' ? 0.78 : 0.92);
+}
+window.addEventListener('message', e => {
+  if (e.data?.type === 'geo-style') { const prev = state.selected; state = { ...state, ...e.data }; apply(); }
+  if (e.data?.type === 'geo-reset') map.flyTo({ center: [-71.5, 50.5], zoom: 3.6, pitch: 55, bearing: -15 });
+});
+let injected = null; try { injected = window.__GEOJSON || parent.__GEOJSON || (parent.parent && parent.parent.__GEOJSON); } catch (e) {}
+map.on('load', () => {
+  (injected ? Promise.resolve(injected) : fetch(SRC).then(r => r.json())).then(data => {
+    gj = JSON.parse(JSON.stringify(data));
+    document.getElementById('msg').remove();
+    map.addSource('reg', { type: 'geojson', data: gj });
+    map.addLayer({ id: 'ext', type: 'fill-extrusion', source: 'reg', paint: {
+      'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.92 } });
+    map.addLayer({ id: 'line', type: 'line', source: 'reg', paint: { 'line-color': ['case', ['==', ['get', 'sel'], 1], '#201e1d', '#f3f2f2'], 'line-width': ['case', ['==', ['get', 'sel'], 1], 3, 0.8] } });
+    map.on('click', 'ext', ev => { const c = ev.features[0].properties.code; parent.postMessage({ type: 'geo-select', code: c }, '*'); });
+    map.on('mousemove', 'ext', () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseleave', 'ext', () => map.getCanvas().style.cursor = '');
+    apply();
+    parent.postMessage({ type: 'geo-ready' }, '*');
+  }).catch(() => { document.getElementById('msg').textContent = 'Impossible de charger les limites des régions.'; });
+});
+parent.postMessage({ type: 'geo-ready' }, '*');
+</script>
+</body>
+</html>

@@ -170,3 +170,48 @@ def ajouter_fiche_sur_carte(carte, nom, niveau, code=None, population=None,
     )
     carte.get_root().html.add_child(folium.Element(contenu))
     return carte
+
+
+# Vue « Schéma » : une case par région, position approximative (grille 7 × 5).
+SCHEMA_POSITIONS = {
+    "01": (5, 2, "Bas-St-Laurent"), "02": (3, 1, "Saguenay–LSJ"), "03": (4, 2, "Capitale-Nat."),
+    "04": (3, 2, "Mauricie"), "05": (4, 4, "Estrie"), "06": (2, 4, "Montréal"),
+    "07": (1, 2, "Outaouais"), "08": (2, 1, "Abitibi-Tém."), "09": (4, 1, "Côte-Nord"),
+    "10": (3, 0, "Nord-du-Québec"), "11": (6, 2, "Gaspésie–ÎdlM"), "12": (5, 3, "Chaudière-App."),
+    "13": (1, 3, "Laval"), "14": (3, 3, "Lanaudière"), "15": (2, 2, "Laurentides"),
+    "16": (3, 4, "Montérégie"), "17": (4, 3, "Centre-du-Qc"),
+}
+SCHEMA_RAMPE = ["#dcdad9", "#d9e6f5", "#7ea9d9", "#095797", "#062e55"]
+
+
+def schema_regions(indicateurs_isq, indicateur=None, code_selection=None):
+    """Grille schématique des 17 régions, colorée en cinq paliers si un indicateur est choisi."""
+    paliers = {}
+    if indicateur and indicateurs_isq:
+        valeurs = [(c, l.get(indicateur)) for c, l in indicateurs_isq.items() if l.get(indicateur) is not None]
+        valeurs.sort(key=lambda item: item[1])
+        for rang, (code, _) in enumerate(valeurs):
+            paliers[code] = min(4, rang * 5 // max(len(valeurs), 1))
+    cases = []
+    for y in range(5):
+        for x in range(7):
+            trouve = next((c for c, (px, py, _) in SCHEMA_POSITIONS.items() if px == x and py == y), None)
+            if trouve is None:
+                cases.append('<div></div>')
+                continue
+            palier = paliers.get(trouve, 0)
+            fond = SCHEMA_RAMPE[palier]
+            encre = "#f3f2f2" if palier >= 3 else "#201e1d"
+            contour = "outline:3px solid #201e1d;outline-offset:-3px;" if trouve == code_selection else ""
+            cases.append(
+                f'<div style="aspect-ratio:1;padding:6px;display:flex;flex-direction:column;'
+                f'justify-content:space-between;background:{fond};color:{encre};{contour}">'
+                f'<strong style="font-size:clamp(14px,2vw,22px);font-weight:800;line-height:1">{trouve}</strong>'
+                f'<span style="font-size:clamp(9px,.9vw,11px);line-height:1.15">{_safe(SCHEMA_POSITIONS[trouve][2])}</span></div>'
+            )
+    st.markdown(
+        '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;max-width:720px;margin:.4rem 0 .8rem">'
+        + "".join(cases) + "</div>",
+        unsafe_allow_html=True,
+    )
+    st.caption("Schéma : une case par région, position approximative. Sélectionnez une région dans le filtre pour la mettre en évidence.")
