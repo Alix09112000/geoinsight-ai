@@ -22,3 +22,12 @@ Ouvrir http://localhost:8501
 Les fichiers `data/quartiers.geojson` et `data/indicateurs_quartiers.csv` ne sont **pas versionnés**. Générer le premier avec l'ETL et fournir uniquement des statistiques réellement établies pour le second. Attention aux limites de l'interpolation entre aires de diffusion et quartiers municipaux. **Aucun modèle prédictif n'est encore entraîné.**
 
 Source : Ville de Québec / Données Québec. Projet expérimental, sans affiliation officielle avec la Ville.
+
+## Déploiement web (Streamlit Community Cloud)
+
+1. Ouvrir https://share.streamlit.io et se connecter avec GitHub.
+2. Créer une nouvelle application depuis `Alix09112000/geoinsight-ai`, branche `main`.
+3. Sélectionner le fichier d'entrée `app/main.py` puis déployer.
+4. L'application télécharge les quartiers au premier démarrage; aucune base externe n'est obligatoire pour la version cartographique.
+
+Lien public attribué après le déploiement, sur un sous-domaine `streamlit.app`.
