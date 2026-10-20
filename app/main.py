@@ -18,6 +18,7 @@ if str(ROOT) not in sys.path:
 from app.regions import REGIONS
 from app.decoupages import charger_subdivisions
 from app.geo_shapes import construire_regions
+from app.name_matching import normaliser_nom, rapprochement
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 GEOD = Geod(ellps="WGS84")
@@ -26,8 +27,7 @@ st.set_page_config(page_title="GeoInsight AI | Intelligence territoriale", page_
 st.markdown("<style>" + (ROOT / "app" / "design.css").read_text(encoding="utf-8") + "</style>", unsafe_allow_html=True)
 
 def normaliser(value):
-    value = unicodedata.normalize("NFKD", str(value).strip().casefold())
-    return "".join(ch for ch in value if not unicodedata.combining(ch))
+    return normaliser_nom(value)
 
 @st.cache_data(show_spinner=False)
 def charger_quartiers(path, mtime):
@@ -267,13 +267,39 @@ if source is not None:
 
 merged = territoires.copy()
 if socio is not None:
-    unmatched = socio.loc[~socio["key"].isin(territoires["key"]), "quartier"].tolist()
+    try:
+        matches, unmatched = rapprochement(
+            socio["quartier"].tolist(), territoires["quartier"].tolist()
+        )
+    except ValueError as error:
+        st.error(f"Correspondances géographiques ambiguës : {error}")
+        st.stop()
+
+    # Utiliser les libellés géographiques validés; préserver intactes les populations.
+    socio = socio.copy()
+    socio["key"] = socio["quartier"].map(
+        lambda nom: normaliser(matches.get(nom, nom))
+    )
+    if socio["key"].duplicated().any():
+        st.error("Des noms du CSV correspondent au même quartier : vérifiez le fichier.")
+        st.stop()
+
+    coverage = len(matches)
     if unmatched:
-        st.warning(f"Quartiers non reconnus dans le CSV : {', '.join(unmatched[:6])}")
-    merged = merged.merge(socio.drop(columns=["quartier"]), how="left",
-                          on="key", validate="one_to_one")
+        st.warning(
+            f"{coverage}/{len(socio)} quartiers du CSV ont été associés. "
+            f"Restent sans correspondance : {', '.join(unmatched)}"
+        )
+    else:
+        st.success(f"CSV associé aux {coverage} quartiers. Population et autres indicateurs conservés.")
+
+    merged = merged.merge(
+        socio.drop(columns=["quartier"]), on="key", how="left", validate="one_to_one"
+    )
     if "population" in merged:
-        merged["densite_hab_km2"] = merged["population"] / merged["superficie_km2"].replace(0, float("nan"))
+        merged["densite_hab_km2"] = (
+            merged["population"] / merged["superficie_km2"].replace(0, float("nan"))
+        )
 filtered = merged if selected == "Tous les quartiers" else merged[merged["quartier"] == selected]
 
 tab_map, tab_analysis, tab_method = st.tabs(["🗺️ Carte", "📊 Analyses", "📚 Méthode"])
