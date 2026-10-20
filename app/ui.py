@@ -60,12 +60,12 @@ def map_object(location, zoom, fond):
 
 
 def inspector(nom, niveau, code=None, population=None, superficie=None,
-              densite=None, note=None):
+              densite=None, note=None, population_annee=2021):
     """Panneau de droite : uniquement des valeurs connues."""
     lines = [
         ('Niveau', niveau),
         ('Code officiel', code),
-        ('Population (2021)', population),
+        (f'Population ({population_annee})', population),
         ('Superficie géographique', superficie),
         ('Densité', densite),
     ]
