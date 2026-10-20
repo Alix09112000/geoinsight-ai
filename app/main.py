@@ -208,7 +208,7 @@ if not quartiers_actifs:
             locals().get("selection_mun", ""),
         ])
         st_folium(carte, height=690, use_container_width=True,
-                  returned_objects=[], key=f"province-map:{selection_key}")
+                  returned_objects=[], key=f"province-map:{selection_key}:{fond_carte}")
     with details_col:
         props = visibles[0]["properties"] if len(visibles) == 1 else None
         inspector(
