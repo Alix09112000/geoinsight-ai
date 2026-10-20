@@ -10,7 +10,6 @@ import pandas as pd
 import streamlit as st
 from pyproj import Geod
 from shapely.geometry import shape, mapping
-from shapely.ops import unary_union
 from app.regions import REGIONS
 from streamlit_folium import st_folium
 
@@ -100,21 +99,26 @@ def charger_regions():
         if not raw_code.isdigit() or not geometry:
             continue
         code = raw_code.zfill(2)
-        polygon = shape(geometry)
-        if polygon.is_empty or polygon.geom_type not in ("Polygon", "MultiPolygon"):
+        if geometry.get("type") not in ("Polygon", "MultiPolygon"):
             continue
         if code not in noms_officiels:
             continue
-        group = grouped.setdefault(code, {"nom": noms_officiels[code], "geometries": []})
-        group["geometries"].append(polygon)
+        group = grouped.setdefault(code, {"nom": noms_officiels[code], "parts": []})
+        # MultiPolygon brut : pas d'union topologique sur des sources parfois invalides.
+        coordinates = geometry.get("coordinates") or []
+        if geometry["type"] == "Polygon":
+            if coordinates:
+                group["parts"].append(coordinates)
+        else:
+            group["parts"].extend(part for part in coordinates if part)
 
     regions = []
     for code, group in sorted(grouped.items()):
-        joined = unary_union(group["geometries"])
-        simplified = joined.simplify(0.006, preserve_topology=True)
+        if not group["parts"]:
+            continue
         regions.append({"type": "Feature",
                         "properties": {"code": code, "nom": group["nom"]},
-                        "geometry": mapping(simplified)})
+                        "geometry": {"type": "MultiPolygon", "coordinates": group["parts"]}})
     if len(regions) != 17:
         raise ValueError(f"Nombre de régions inattendu : {len(regions)} (17 attendues).")
     return regions
