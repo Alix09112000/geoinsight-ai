@@ -24,10 +24,26 @@ def header():
               <strong>Comprendre les territoires. Éclairer les décisions.</strong>
               <small>Données géospatiales · Analyses · Visualisations · Intelligence territoriale</small>
             </div>
-            <span class="gi-tag">QUÉBEC · PILOTE</span>
+            <span class="gi-tag">QUÉBEC · BI GÉOSPATIALE</span>
           </div>
         </div>
         """, unsafe_allow_html=True,
+    )
+
+
+def metric_card(icon, title, value, subtitle="", tone="blue"):
+    """KPI sobre et sourcé : la fonction n'invente jamais de chiffres."""
+    if tone not in ("blue", "cyan", "green", "violet"):
+        tone = "blue"
+    st.markdown(
+        '<div class="gi-kpi gi-kpi-' + tone + '">'
+        '<div class="gi-kpi-icon">' + _safe(icon) + '</div>'
+        '<div class="gi-kpi-content">'
+        '<span class="gi-kpi-title">' + _safe(title) + '</span>'
+        '<strong>' + _safe(value) + '</strong>'
+        '<small>' + _safe(subtitle) + '</small>'
+        '</div></div>',
+        unsafe_allow_html=True,
     )
 
 
