@@ -21,7 +21,7 @@ from app.decoupages import charger_subdivisions
 from app.geo_shapes import construire_regions
 from app.name_matching import normaliser_nom, rapprochement
 from app.quartier_bi import preparer_couche
-from app.ui import header, inspector, map_object, section
+from app.ui import header, inspector, map_object, section, legend_choropleth
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 CSV_REFERENCE = ROOT / "data" / "indicateurs_quartiers_2021.csv"
@@ -334,27 +334,32 @@ with tab_map:
     m = map_object(location=[46.8139, -71.2080], zoom=11, fond=fond_carte)
 
     color_scale = None
+    legende_active = False
     if metric and valeurs:
         vmin, vmax = min(valeurs), max(valeurs)
-        if vmin == vmax:
-            vmax = vmin + 1
-        color_scale = LinearColormap(
-            ["#edf8f7", "#9fdbdc", "#46aab5", "#155b78"],
-            vmin=vmin, vmax=vmax,
-            caption="Population (habitants)" if metric == "population"
-                    else "Densité (habitants par km²)",
-        )
-        color_scale.add_to(m)
+        # Une seule zone n'offre aucune variation statistique à cartographier.
+        legende_active = len(visible) > 1 and vmin < vmax
+        if legende_active:
+            color_scale = LinearColormap(
+                ["#edf8f7", "#9fdbdc", "#46aab5", "#155b78"],
+                vmin=vmin, vmax=vmax,
+                caption="Population (habitants)" if metric == "population"
+                        else "Densité (habitants par km²)",
+                max_labels=3,
+            )
     elif metric:
         st.info("Aucune donnée numérique disponible pour cette couche.")
 
     if show_borders:
         def colorier(feature):
             value = feature["properties"]["valeur"]
+            colored = color_scale is not None and value is not None
             return {
-                "color": "#146478", "weight": 1.7,
-                "fillColor": color_scale(value) if color_scale and value is not None else "#bed5da",
-                "fillOpacity": 0.70 if color_scale and value is not None else 0.22,
+                "color": "#087f8c", "weight": 2.2 if len(visible) == 1 else 1.7,
+                "fillColor": color_scale(value) if colored else "#56b4c2",
+                # Imagerie satellite lisible ; pas d'aplat opaque sur un seul quartier.
+                "fillOpacity": (0.30 if fond_carte == "Satellite" else 0.62)
+                               if colored else (0.12 if fond_carte == "Satellite" else 0.20),
             }
 
         folium.GeoJson(
@@ -394,6 +399,13 @@ with tab_map:
             m, height=615, use_container_width=True, returned_objects=[],
             key=f"quartiers-map:{selected}:{show_borders}:{mode}:{fond_carte}",
         )
+        if legende_active:
+            legend_choropleth(
+                "Population (habitants, 2021)" if metric == "population"
+                else "Densité (habitants / km²)", vmin, vmax
+            )
+        elif metric and len(visible) == 1:
+            st.caption("Quartier sélectionné : ses valeurs figurent dans la fiche à droite.")
     with col_fiche:
         row = filtered.iloc[0] if selected != "Tous les quartiers" and len(filtered) else None
         local_population = (
