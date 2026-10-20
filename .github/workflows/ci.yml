@@ -21,4 +21,4 @@ jobs:
       - name: Vérifier la syntaxe et les tests
         run: |
           python -m compileall -q app etl tests
-          python -m pytest -q tests/test_geo_shapes.py tests/test_name_matching.py tests/test_quartier_bi.py tests/test_quebec_mask.py
+          python -m pytest -q tests/test_geo_shapes.py tests/test_name_matching.py tests/test_quartier_bi.py tests/test_quebec_mask.py tests/test_regional_bi.py
