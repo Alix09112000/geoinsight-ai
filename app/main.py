@@ -1,4 +1,4 @@
-"""GeoInsight AI 2.0 — tableau de bord géospatial de la Ville de Québec."""
+"""GeoInsight AI — plateforme géospatiale extensible, pilote initial à Québec."""
 from pathlib import Path
 import json
 import unicodedata
@@ -15,7 +15,7 @@ GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 GEOD = Geod(ellps="WGS84")
 
-st.set_page_config(page_title="GeoInsight AI | Québec", page_icon="🌎", layout="wide")
+st.set_page_config(page_title="GeoInsight AI | Intelligence territoriale", page_icon="🌎", layout="wide")
 st.markdown("""<style>
 .block-container{padding-top:1.2rem;max-width:1500px}
 div[data-testid="stMetric"]{background:#f0f7f8;border:1px solid #d5e8ea;border-radius:12px;padding:16px}
@@ -64,8 +64,9 @@ def charger_indicateurs(source):
                 raise ValueError("Valeur négative : " + field)
     return df
 
-st.title("🌎 GeoInsight AI — Ville de Québec")
-st.caption("Geospatial Business Intelligence · Cartographie et indicateurs territoriaux")
+st.title("🌎 GeoInsight AI")
+st.caption("Plateforme de Business Intelligence géospatiale — extensible à plusieurs territoires")
+st.caption("Territoire actuellement disponible : ville de Québec (pilote)")
 if not GEOJSON.exists():
     try:
         from etl.ingest_quartiers import fetch_quartiers
@@ -92,7 +93,8 @@ if territoires["key"].duplicated().any():
 names = sorted(territoires["quartier"].tolist())
 
 with st.sidebar:
-    st.title("🧭 Explorer Québec")
+    st.title("🧭 Exploration territoriale")
+    st.selectbox("Territoire", ["Québec, Canada — pilote"], help="D’autres villes seront ajoutées dans les prochaines versions.")
     selected = st.selectbox("Sélectionner un quartier", ["Tous les quartiers"] + names)
     show_borders = st.checkbox("Afficher les limites", value=True)
     st.divider()
