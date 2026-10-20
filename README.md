@@ -1,8 +1,8 @@
-## Design dashboard — maquette approuvée
+## Design
 
-L'interface Streamlit suit désormais la maquette de référence : bandeau compact bleu marine, barre latérale claire, quatre KPI, grande carte interactive et fiche du territoire à droite. Les deux fonds **Plan (OpenStreetMap)** et **Satellite (Esri World Imagery)** sont fonctionnels. La vue des quartiers conserve les choroplèthes, les données de population 2021, les comparaisons et les exports CSV.
+GeoInsight AI adopte le style **Modernist bleu Québec** : police Archivo, mise en page en grille, angles droits, traits de 2 px et fond gris clair `#f3f2f2`. L'accent principal est le bleu Québec `#095797`, décliné en camaïeu pour les régions, les cartes et les contrôles.
 
-Les éléments absents de cette version (recherche universelle, 3D réelle, prédiction IA) ne sont pas présentés comme opérationnels. La reproduction pixel par pixel nécessiterait un front-end dédié comme React/MapLibre ; ce chantier reste distinct de la version Streamlit publique.
+Les KPI apparaissent en cellules sans icônes, les onglets sont soulignés en bleu et les boutons sont alignés à gauche. Le thème Streamlit et les fiches Folium utilisent la même palette, y compris le masque extérieur du Québec. Ces changements sont uniquement visuels : **aucun calcul, aucune source de données et aucune logique métier ne sont modifiés**.
 
 # GeoInsight AI — Business Intelligence géospatiale du Québec
 

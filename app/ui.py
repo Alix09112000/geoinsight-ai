@@ -15,7 +15,6 @@ def header():
         """
         <div class="gi-topbar">
           <div class="gi-topline">
-            <span class="gi-globe">🌐</span>
             <div class="gi-brand">
               <div class="gi-brandname">GeoInsight <span>AI</span></div>
               <div class="gi-brandsub">Explorer le Québec</div>
@@ -93,7 +92,7 @@ def inspector(nom, niveau, code=None, population=None, superficie=None,
     extra = '<p class="gi-panelnote">' + _safe(note) + '</p>' if note else ''
     st.markdown(
         '<div class="gi-inspector">'
-        '<div class="gi-inspectorhead"><span>📍 Fiche territoriale</span>'
+        '<div class="gi-inspectorhead"><span>Fiche territoriale</span>'
         '<span class="gi-live">DONNÉES RÉELLES</span></div>'
         '<div class="gi-inspectorbody"><div class="gi-inspectoreyebrow">TERRITOIRE SÉLECTIONNÉ</div>'
         '<h3>' + _safe(nom) + '</h3>' + rows + extra +
@@ -145,24 +144,24 @@ def ajouter_fiche_sur_carte(carte, nom, niveau, code=None, population=None,
         '<style>'
         '.gi-map-panel{position:fixed;right:14px;top:16px;z-index:9999;'
         'width:282px;max-height:calc(100vh - 35px);overflow:auto;'
-        'background:#fff;border:1px solid #c9e2ed;border-radius:14px;'
-        'box-shadow:0 8px 30px rgba(0,39,69,.23);font-family:Arial,sans-serif;}'
-        '.gi-map-top{background:linear-gradient(100deg,#00415e,#087d9d);'
-        'color:#fff;font-size:15px;font-weight:750;padding:17px 15px;}'
-        '.gi-map-body{padding:17px 14px;color:#183d53;}'
-        '.gi-map-sub{font-size:10px;letter-spacing:1px;color:#638497;font-weight:bold;}'
+        'background:#f3f2f2;border:2px solid rgba(32,30,29,.4);border-radius:0;'
+        'box-shadow:0 8px 24px rgba(32,30,29,.18);font-family:Archivo,system-ui,sans-serif;}'
+        '.gi-map-top{background:#095797;'
+        'color:#f3f2f2;font-size:14px;font-weight:700;padding:14px 15px;}'
+        '.gi-map-body{padding:16px 14px;color:#201e1d;}'
+        '.gi-map-sub{font-size:10px;letter-spacing:1px;color:#083f73;font-weight:bold;}'
         '.gi-map-title{font-size:20px;line-height:1.22;margin:10px 0 17px;'
         'font-weight:800;overflow-wrap:anywhere;}'
         '.gi-map-detail{display:flex;justify-content:space-between;gap:8px;'
-        'padding:10px 0;border-bottom:1px solid #edf2f5;font-size:12px;}'
-        '.gi-map-detail span{color:#6f8799;}'
-        '.gi-map-detail strong{text-align:right;color:#0b4663;overflow-wrap:anywhere;}'
-        '.gi-map-source{color:#7390a1;line-height:1.45;font-size:11px;margin-top:15px;}'
+        'padding:10px 0;border-bottom:1px solid rgba(32,30,29,.18);font-size:12px;}'
+        '.gi-map-detail span{color:#5b5857;}'
+        '.gi-map-detail strong{text-align:right;color:#201e1d;overflow-wrap:anywhere;}'
+        '.gi-map-source{color:#5b5857;line-height:1.45;font-size:11px;margin-top:15px;}'
         '@media(max-width:720px){.gi-map-panel{width:190px;right:8px;top:10px;}'
         '.gi-map-body{padding:10px}.gi-map-title{font-size:15px}}'
         '</style>'
         '<aside class="gi-map-panel" aria-label="Fiche du territoire">'
-        '<div class="gi-map-top">📍 Fiche territoriale</div>'
+        '<div class="gi-map-top">Fiche territoriale</div>'
         '<div class="gi-map-body"><div class="gi-map-sub">TERRITOIRE SÉLECTIONNÉ</div>'
         '<div class="gi-map-title">' + _safe(nom) + '</div>'
         + details +

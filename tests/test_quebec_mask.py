@@ -45,5 +45,5 @@ def test_masque_folium_est_opaque_et_non_interactif():
     ajouter_masque(carte, mask_geo)
     html = carte.get_root().render()
     assert "fillOpacity" in html
-    assert "f7fafc" in html
+    assert "f3f2f2" in html
     assert '"interactive": false' in html or '"interactive":false' in html

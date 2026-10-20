@@ -55,7 +55,7 @@ def ajouter_masque(carte, geom_masque):
         control=False,
         interactive=False,
         style_function=lambda _: {
-            "color": "#f7fafc", "weight": 0, "opacity": 0,
-            "fillColor": "#f7fafc", "fillOpacity": 1.0,
+            "color": "#f3f2f2", "weight": 0, "opacity": 0,
+            "fillColor": "#f3f2f2", "fillOpacity": 1.0,
         },
     ).add_to(carte)

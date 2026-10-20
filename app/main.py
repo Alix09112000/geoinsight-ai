@@ -293,10 +293,11 @@ if not quartiers_actifs:
     carte.options["maxBoundsViscosity"] = 1.0
     colormap_regions = None
     palette_regions = (
-        "#007baf", "#1394ca", "#ffaf40", "#e5a23a", "#2eb6a9",
-        "#ff7683", "#0085b4", "#28b776", "#086a91", "#096894",
-        "#8661c5", "#7e83d7", "#7685ae", "#f69c50", "#eb6894",
-        "#26a0b3", "#6c8793",
+        # Bleu Québec : six tons de la même rampe, alternés entre régions voisines.
+        "#7ea9d9", "#095797", "#3a7cc4", "#b6cfec", "#083f73",
+        "#d9e6f5", "#3a7cc4", "#062e55", "#7ea9d9", "#b6cfec",
+        "#095797", "#d9e6f5", "#083f73", "#7ea9d9", "#3a7cc4",
+        "#095797", "#b6cfec",
     )
     couleurs_regions = {
         f"{index:02d}": palette_regions[index - 1]
@@ -306,7 +307,7 @@ if not quartiers_actifs:
         if theme_regional in INDICATEURS and indicateurs_isq:
             values = [line[theme_regional] for line in indicateurs_isq.values()]
             colormap_regions = LinearColormap(
-                ["#e9f6f7", "#95d2d7", "#3299b2", "#0b4b6d"],
+                ["#eef4fb", "#7ea9d9", "#095797", "#062e55"],
                 vmin=min(values), vmax=max(values),
                 caption=INDICATEURS[theme_regional][0],
             )
@@ -325,7 +326,7 @@ if not quartiers_actifs:
             def style_region(feature):
                 val = indicateurs_isq[feature["properties"]["code"]][theme_regional]
                 return {
-                    "color": "#065b7a", "weight": 1.4,
+                    "color": "#f3f2f2", "weight": 1.2,
                     "fillColor": colormap_regions(val), "fillOpacity": .73,
                 }
             tooltip = folium.GeoJsonTooltip(
@@ -338,10 +339,10 @@ if not quartiers_actifs:
                 code = feature["properties"]["code"]
                 is_province = region is None and len(visibles) == 17
                 return {
-                    "color": "#f5fbff" if is_province else "#087f8c",
+                    "color": "#f3f2f2" if is_province else "#095797",
                     "weight": 1.6 if is_province else 1.8,
-                    "fillColor": couleurs_regions.get(code, "#21a0a6")
-                                 if is_province else "#21a0a6",
+                    "fillColor": couleurs_regions.get(code, "#3a7cc4")
+                                 if is_province else "#3a7cc4",
                     "fillOpacity": 0.82 if is_province else 0.20,
                 }
             tooltip = folium.GeoJsonTooltip(
@@ -352,7 +353,7 @@ if not quartiers_actifs:
             {"type": "FeatureCollection", "features": couche_visible},
             name=niveau, tooltip=tooltip, style_function=style_region,
             highlight_function=lambda _: {
-                "color": "#ff9d2e", "weight": 3, "fillOpacity": 0.55
+                "color": "#201e1d", "weight": 3, "fillOpacity": 0.55
             },
         ).add_to(carte)
         # Calcul de cadrage à partir des coordonnées, sans union topologique GEOS.
@@ -383,7 +384,7 @@ if not quartiers_actifs:
                 icon=folium.DivIcon(
                     html=(
                         '<div style="color:#fff;font-size:13px;font-weight:800;'
-                        'text-shadow:0 1px 3px #18465d,0 0 3px #18465d;'
+                        'text-shadow:0 0 3px #062e55,0 0 2px #062e55;font-family:Archivo,sans-serif;'
                         'text-align:center;pointer-events:none">'
                         + code_affiche + '</div>'
                     ),
@@ -729,7 +730,7 @@ with tab_map:
         legende_active = len(visible) > 1 and vmin < vmax
         if legende_active:
             color_scale = LinearColormap(
-                ["#edf8f7", "#9fdbdc", "#46aab5", "#155b78"],
+                ["#eef4fb", "#7ea9d9", "#095797", "#062e55"],
                 vmin=vmin, vmax=vmax,
                 caption="Population (habitants)" if metric == "population"
                         else "Densité (habitants par km²)",
@@ -743,8 +744,8 @@ with tab_map:
             value = feature["properties"]["valeur"]
             colored = color_scale is not None and value is not None
             return {
-                "color": "#087f8c", "weight": 2.2 if len(visible) == 1 else 1.7,
-                "fillColor": color_scale(value) if colored else "#56b4c2",
+                "color": "#095797", "weight": 2.2 if len(visible) == 1 else 1.7,
+                "fillColor": color_scale(value) if colored else "#7ea9d9",
                 # Imagerie satellite lisible ; pas d'aplat opaque sur un seul quartier.
                 "fillOpacity": (0.30 if fond_carte == "Satellite" else 0.62)
                                if colored else (0.12 if fond_carte == "Satellite" else 0.20),
@@ -764,7 +765,7 @@ with tab_map:
                 labels=True,
             ),
             style_function=colorier,
-            highlight_function=lambda _: {"color": "#ff9d2e", "weight": 3.5,
+            highlight_function=lambda _: {"color": "#201e1d", "weight": 3.5,
                                           "fillOpacity": 0.84},
         ).add_to(m)
 
