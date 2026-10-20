@@ -292,6 +292,16 @@ if not quartiers_actifs:
     carte.options["maxBounds"] = [[41.5, -87.0], [65.0, -51.0]]
     carte.options["maxBoundsViscosity"] = 1.0
     colormap_regions = None
+    palette_regions = (
+        "#007baf", "#1394ca", "#ffaf40", "#e5a23a", "#2eb6a9",
+        "#ff7683", "#0085b4", "#28b776", "#086a91", "#096894",
+        "#8661c5", "#7e83d7", "#7685ae", "#f69c50", "#eb6894",
+        "#26a0b3", "#6c8793",
+    )
+    couleurs_regions = {
+        f"{index:02d}": palette_regions[index - 1]
+        for index in range(1, 18)
+    }
     if visibles:
         if theme_regional in INDICATEURS and indicateurs_isq:
             values = [line[theme_regional] for line in indicateurs_isq.values()]
@@ -324,9 +334,16 @@ if not quartiers_actifs:
             )
         else:
             couche_visible = visibles
-            def style_region(_):
-                return {"color": "#087f8c", "weight": 1.8,
-                        "fillColor": "#21a0a6", "fillOpacity": 0.16}
+            def style_region(feature):
+                code = feature["properties"]["code"]
+                is_province = region is None and len(visibles) == 17
+                return {
+                    "color": "#f5fbff" if is_province else "#087f8c",
+                    "weight": 1.6 if is_province else 1.8,
+                    "fillColor": couleurs_regions.get(code, "#21a0a6")
+                                 if is_province else "#21a0a6",
+                    "fillOpacity": 0.82 if is_province else 0.20,
+                }
             tooltip = folium.GeoJsonTooltip(
                 fields=["code", "nom"], aliases=["Code :", "Nom :"]
             )
@@ -354,6 +371,25 @@ if not quartiers_actifs:
                               [max(x[3] for x in extent), max(x[2] for x in extent)]])
     if masque_province is not None:
         ajouter_masque(carte, masque_province)
+
+    # Codes géographiques permanents au centre intérieur de chaque région.
+    if region is None and theme_regional == "Limites administratives":
+        for feature in regions:
+            polygon = shape(feature["geometry"])
+            point = polygon.representative_point()
+            code_affiche = feature["properties"]["code"]
+            folium.Marker(
+                [point.y, point.x],
+                icon=folium.DivIcon(
+                    html=(
+                        '<div style="color:#fff;font-size:13px;font-weight:800;'
+                        'text-shadow:0 1px 3px #18465d,0 0 3px #18465d;'
+                        'text-align:center;pointer-events:none">'
+                        + code_affiche + '</div>'
+                    ),
+                    icon_size=(26, 20), icon_anchor=(13, 10),
+                ),
+            ).add_to(carte)
     folium.LayerControl().add_to(carte)
     carte_col, details_col = st.columns([3.4, 1.25], gap="medium")
     with carte_col:
@@ -395,8 +431,46 @@ if not quartiers_actifs:
     st.caption("Source : MRNF — Découpages administratifs du Québec. Géométries réparées et simplifiées pour affichage.")
     st.caption("Les quartiers sont disponibles pour la ville de Québec lorsqu’elle est sélectionnée; ailleurs, leur couverture dépend des données existantes.")
 
+    # Synthèse provinciale sourcée : ne jamais utiliser les chiffres fictifs de la maquette.
+    section("Indicateurs de synthèse", "Province de Québec · Données vérifiées et estimations signalées")
+    try:
+        stats_regions = calculer_superficies_regionales(regions)
+        superficie_totale = sum(
+            row["Superficie géodésique estimée (km²)"]
+            for row in stats_regions
+        )
+    except (ValueError, TypeError, OverflowError):
+        superficie_totale = None
+    pop_quebec = sum(
+        item["population_2025"] for item in indicateurs_isq.values()
+    ) if indicateurs_isq else None
+    p1, p2, p3, p4 = st.columns(4, gap="small")
+    with p1:
+        metric_card("👥", "Population (2025)",
+                    f"{pop_quebec:,}".replace(",", " ") if pop_quebec is not None
+                    else "Indisponible", "Somme des régions · ISQ", "cyan")
+    with p2:
+        metric_card("⛰️", "Superficie estimée",
+                    f"{superficie_totale:,.0f} km²".replace(",", " ")
+                    if superficie_totale is not None else "Indisponible",
+                    "Géométries simplifiées · WGS84", "green")
+    with p3:
+        metric_card("🏘️", "Densité indicative",
+                    f"{pop_quebec / superficie_totale:,.1f} hab./km²"
+                    .replace(",", " ").replace(".", ",")
+                    if pop_quebec is not None and superficie_totale
+                    else "Indisponible",
+                    "Population / surface estimée", "violet")
+    with p4:
+        metric_card("🗂️", "Couverture des données",
+                    f"{len(indicateurs_isq)}/17",
+                    "Fiches socioéconomiques ISQ", "blue")
+    st.caption("Les superficies et densités affichées ici sont calculées à partir "
+               "des polygones cartographiques simplifiés, et non des superficies "
+               "administratives certifiées.")
+
     if indicateurs_regionaux:
-        with st.expander("📈 Données socioéconomiques officielles — 17 régions", expanded=True):
+        with st.expander("📈 Données socioéconomiques officielles — 17 régions", expanded=espace == "📊 Données et indicateurs"):
             st.caption(
                 "Source : Institut de la statistique du Québec (ISQ). "
                 "Population et 65+ : 2025 ; faible revenu des familles : 2023 ; "
