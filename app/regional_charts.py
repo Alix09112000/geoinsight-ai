@@ -1,71 +1,75 @@
-"""Graphiques socioéconomiques régionaux : présentation comparable et non trompeuse.
+"""Graphiques territoriaux légers, sans Altair ni dépendance JavaScript.
 
-- Barre horizontale démarrant toujours à zéro
-- Classement décroissant (17 régions)
-- Noms complets et valeurs avec unités + année
-- Aucune modification des chiffres source ISQ
+Les barres commencent à zéro, les noms restent complets et les chiffres
+proviennent exclusivement des données passées par l'application.
 """
+from html import escape
 import math
-
-import altair as alt
-import pandas as pd
 
 from app.socioeconomic import INDICATEURS, format_indicateur
 
 
-def graphique_indicateur_regions(rows, champ):
-    if champ not in INDICATEURS:
-        raise ValueError("Indicateur régional inconnu.")
-    titre, unite, annee = INDICATEURS[champ]
+def _nombre(value):
+    try:
+        val = float(value)
+    except (ValueError, TypeError) as error:
+        raise ValueError("Valeur numérique indisponible.") from error
+    if not math.isfinite(val) or val < 0:
+        raise ValueError("Valeur numérique invalide.")
+    return val
+
+
+def graphique_barres(rows, label_key, value_key, title, formatter=None, year=None):
+    """HTML autonome : zéro réel, tri décroissant, étiquettes complètes.
+
+    Les libellés sont échappés pour sécuriser les données importées en CSV.
+    """
     points = []
     for row in rows:
-        region = str(row["nom_region"]).strip()
-        try:
-            value = float(row[champ])
-        except (KeyError, TypeError, ValueError) as error:
-            raise ValueError(f"Valeur indisponible pour {region}") from error
-        if not region or not math.isfinite(value) or value < 0:
-            raise ValueError(f"Valeur invalide pour {region}")
-        points.append({
-            "region": region,
-            "valeur": value,
-            "affichage": format_indicateur(value, champ),
-            "annee": str(annee),
-        })
+        label = str(row.get(label_key) or "").strip()
+        if not label:
+            raise ValueError("Nom de territoire manquant.")
+        value = _nombre(row.get(value_key))
+        text = (formatter(value) if formatter is not None
+                else f"{value:,.1f}".replace(",", " ").replace(".", ","))
+        points.append((label, value, str(text)))
     if not points:
-        raise ValueError("Aucune région à représenter.")
-    maximum = max(row["valeur"] for row in points)
-    domaine_max = maximum * 1.28 if maximum > 0 else 1
-    data = pd.DataFrame(points)
-    ordre = alt.SortField(field="valeur", order="descending")
-    x = alt.X(
-        "valeur:Q",
-        title=f"{titre} ({unite})",
-        scale=alt.Scale(domain=[0, domaine_max], zero=True),
-        axis=alt.Axis(
-            labelFontSize=11, titleFontSize=12, grid=True,
-            format=".1f" if unite == "%" else "~s",
-        ),
+        raise ValueError("Aucune donnée à représenter.")
+
+    points.sort(key=lambda p: (-p[1], p[0]))
+    largest = max(val for _, val, _ in points)
+    scale = largest if largest > 0 else 1.0
+
+    parts = [
+        '<section class="gi-bars" role="figure" aria-label="' + escape(title, quote=True) + '">',
+        '<div class="gi-bars-heading">' + escape(title) +
+        (f' · {int(year)}' if year is not None else '') + '</div>',
+        '<div class="gi-bars-axis">0 — échelle proportionnelle à la valeur</div>',
+    ]
+    for label, val, display in points:
+        percent = 100.0 * val / scale
+        safe_label = escape(label, quote=True)
+        safe_display = escape(display, quote=True)
+        parts.append(
+            '<div class="gi-bars-row">'
+            '<div class="gi-bars-name" title="' + safe_label + '">' + safe_label + '</div>'
+            '<div class="gi-bars-track" title="' + safe_label + ' : ' + safe_display + '">'
+            '<span class="gi-bars-fill" style="width:' + f'{percent:.4f}%' + '"></span>'
+            '</div>'
+            '<div class="gi-bars-value">' + safe_display + '</div>'
+            '</div>'
+        )
+    parts.append('</section>')
+    return "\n".join(parts)
+
+
+def graphique_indicateur_regions(rows, champ):
+    """Graphique régional pour un indicateur ISQ connu (année/unités exactes)."""
+    if champ not in INDICATEURS:
+        raise ValueError("Indicateur régional inconnu.")
+    titre, _unite, annee = INDICATEURS[champ]
+    return graphique_barres(
+        rows, "nom_region", champ, titre,
+        formatter=lambda val: format_indicateur(val, champ),
+        year=annee,
     )
-    y = alt.Y(
-        "region:N",
-        sort=ordre,
-        title=None,
-        axis=alt.Axis(labelLimit=380, labelFontSize=12, labelPadding=8),
-    )
-    base = alt.Chart(data).encode(x=x, y=y)
-    barres = base.mark_bar(color="#087f8c", cornerRadiusEnd=3).encode(
-        tooltip=[
-            alt.Tooltip("region:N", title="Région"),
-            alt.Tooltip("affichage:N", title=titre),
-            alt.Tooltip("annee:N", title="Année"),
-        ]
-    )
-    labels = base.mark_text(
-        align="left", baseline="middle", dx=6,
-        fontSize=11, fontWeight="bold", color="#244b61"
-    ).encode(text="affichage:N")
-    return (barres + labels).properties(
-        height=max(380, len(points) * 31),
-        padding={"left": 6, "top": 10, "right": 12, "bottom": 4},
-    ).configure_view(stroke=None)
