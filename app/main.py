@@ -190,7 +190,7 @@ if region is not None:
 
 if not quartiers_actifs:
     st.markdown('<div class="geo-section-label">Tableau de bord territorial</div>', unsafe_allow_html=True)
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1, kpi2, kpi3, kpi4 = st.columns([1, 1.25, 1, 1.2])
     kpi1.metric("Régions administratives", len(regions))
     kpi2.metric("Niveau d’exploration", niveau)
     kpi3.metric("Territoires affichés", len(visibles))
@@ -222,7 +222,14 @@ if not quartiers_actifs:
     folium.LayerControl().add_to(carte)
     carte_col, details_col = st.columns([3.4, 1.25], gap="medium")
     with carte_col:
-        st_folium(carte, height=680, use_container_width=True, returned_objects=[])
+        # La clé change au choix d'un territoire : Leaflet recadre alors la carte.
+        selection_key = "|".join([
+            selection_region,
+            locals().get("selection_mrc", ""),
+            locals().get("selection_mun", ""),
+        ])
+        st_folium(carte, height=690, use_container_width=True,
+                  returned_objects=[], key=f"province-map:{selection_key}")
     with details_col:
         st.markdown("#### 📍 Territoire sélectionné")
         if len(visibles) == 1:
