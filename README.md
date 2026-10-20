@@ -34,9 +34,9 @@ Lien public attribué après le déploiement, sur un sous-domaine `streamlit.app
 
 ## Feuille de route provinciale
 
-1. Pilote : quartiers de la ville de Québec.
-2. Intégrer les limites des régions administratives, des MRC et municipalités de la province.
-3. Ajouter des indicateurs socioéconomiques harmonisés et leurs métadonnées.
+1. Vue provinciale : polygones des 17 régions administratives depuis le service REST officiel du MRNF (affichage simplifié).\n2. Vue locale : quartiers de la ville de Québec.
+3. Intégrer ensuite les limites des MRC et municipalités de la province.
+4. Ajouter des indicateurs socioéconomiques harmonisés et leurs métadonnées.
 4. Comparer les territoires à échelles comparables, avec estimation des incertitudes.
 5. Développer la prédiction spatiale et la validation par blocs spatiaux.
 
