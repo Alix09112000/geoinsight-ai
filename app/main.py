@@ -24,9 +24,11 @@ from app.quartier_bi import preparer_couche
 from app.ui import header, inspector, map_object, section, legend_choropleth
 from app.quebec_mask import masque_hors_quebec, ajouter_masque
 from app.regional_bi import tableau_regions, comparer_regions
+from app.socioeconomic import INDICATEURS, charger_indicateurs_regions, joindre_indicateurs_regions, format_indicateur
 GEOJSON = ROOT / "data" / "quartiers.geojson"
 CSV = ROOT / "data" / "indicateurs_quartiers.csv"
 CSV_REFERENCE = ROOT / "data" / "indicateurs_quartiers_2021.csv"
+CSV_REGIONS_ISQ = ROOT / "data" / "indicateurs_regions_isq.csv"
 GEOD = Geod(ellps="WGS84")
 
 st.set_page_config(page_title="GeoInsight AI | Intelligence territoriale", page_icon="🌎", layout="wide")
@@ -130,6 +132,15 @@ except Exception as erreur_masque:
                "affichage sans fond de carte en attendant leur réparation.")
     st.caption(f"Détail technique du masque : {erreur_masque}")
 
+try:
+    indicateurs_regionaux = charger_indicateurs_regions(CSV_REGIONS_ISQ)
+    indicateurs_isq = joindre_indicateurs_regions(regions, indicateurs_regionaux)
+except (OSError, ValueError, TypeError) as error_isq:
+    indicateurs_regionaux, indicateurs_isq = [], {}
+    st.warning("Les indicateurs régionaux ISQ ne sont pas disponibles : "
+               "les cartes administratives restent accessibles.")
+    st.caption(str(error_isq))
+
 regional_options = {"Toute la province": None}
 regional_options.update({
     f'{r["properties"]["code"]} — {r["properties"]["nom"]}': r
@@ -189,14 +200,30 @@ fond_carte = st.sidebar.radio(
 if not quartiers_actifs:
     section("Vue d'ensemble", "Exploration administrative du Québec")
     kpi1, kpi2, kpi3, kpi4 = st.columns(4, gap="small")
+    ligne_region = indicateurs_isq.get(region["properties"]["code"]) if region is not None else None
     kpi1.metric("Régions du Québec", len(regions))
     kpi2.metric("Échelle actuelle",
                 {"Régions administratives": "Régions",
                  "MRC et territoires équivalents": "MRC / TE",
                  "Municipalités": "Municipalités"}.get(niveau, niveau))
     kpi3.metric("Territoires affichés", len(visibles))
-    kpi4.metric("Indicateurs économiques", "En préparation")
+    if indicateurs_isq:
+        population_kpi = (ligne_region["population_2025"] if ligne_region
+                          else sum(row["population_2025"] for row in indicateurs_isq.values()))
+        kpi4.metric("Population régionale 2025" if ligne_region else "Population Québec 2025",
+                    f"{population_kpi:,}".replace(",", " "))
+    else:
+        kpi4.metric("Population (2025)", "Indisponible")
     section("Carte des territoires", "Plan et satellite · limites officielles")
+    theme_regional = "Limites administratives"
+    if region is None and indicateurs_isq:
+        theme_regional = st.selectbox(
+            "Carte thématique — 17 régions",
+            ["Limites administratives"] + list(INDICATEURS),
+            format_func=lambda value: INDICATEURS[value][0]
+            if value in INDICATEURS else value,
+            key="carte_thematique_regions",
+        )
 
     carte = (map_object(location=[52.5, -71.5], zoom=5, fond=fond_carte)
              if masque_province is not None else
@@ -204,16 +231,52 @@ if not quartiers_actifs:
                         control_scale=True))
     carte.options["maxBounds"] = [[41.5, -87.0], [65.0, -51.0]]
     carte.options["maxBoundsViscosity"] = 1.0
+    colormap_regions = None
     if visibles:
+        if theme_regional in INDICATEURS and indicateurs_isq:
+            values = [line[theme_regional] for line in indicateurs_isq.values()]
+            colormap_regions = LinearColormap(
+                ["#e9f6f7", "#95d2d7", "#3299b2", "#0b4b6d"],
+                vmin=min(values), vmax=max(values),
+                caption=INDICATEURS[theme_regional][0],
+            )
+            _, _, annee_theme = INDICATEURS[theme_regional]
+            couche_visible = [{
+                "type": "Feature", "geometry": f["geometry"],
+                "properties": {
+                    **f["properties"],
+                    "indicateur": format_indicateur(
+                        indicateurs_isq[f["properties"]["code"]][theme_regional],
+                        theme_regional,
+                    ),
+                    "annee": str(annee_theme),
+                },
+            } for f in visibles]
+            def style_region(feature):
+                val = indicateurs_isq[feature["properties"]["code"]][theme_regional]
+                return {
+                    "color": "#065b7a", "weight": 1.4,
+                    "fillColor": colormap_regions(val), "fillOpacity": .73,
+                }
+            tooltip = folium.GeoJsonTooltip(
+                fields=["code", "nom", "indicateur", "annee"],
+                aliases=["Code :", "Région :", "Indicateur :", "Année :"],
+            )
+        else:
+            couche_visible = visibles
+            def style_region(_):
+                return {"color": "#087f8c", "weight": 1.8,
+                        "fillColor": "#21a0a6", "fillOpacity": 0.16}
+            tooltip = folium.GeoJsonTooltip(
+                fields=["code", "nom"], aliases=["Code :", "Nom :"]
+            )
+
         folium.GeoJson(
-            {"type": "FeatureCollection", "features": visibles},
-            name=niveau,
-            tooltip=folium.GeoJsonTooltip(fields=["code", "nom"],
-                                          aliases=["Code :", "Nom :"]),
-            style_function=lambda _: {"color": "#087f8c", "weight": 1.8,
-                                      "fillColor": "#21a0a6", "fillOpacity": 0.16},
-            highlight_function=lambda _: {"color": "#ff9d2e", "weight": 3,
-                                          "fillOpacity": 0.35},
+            {"type": "FeatureCollection", "features": couche_visible},
+            name=niveau, tooltip=tooltip, style_function=style_region,
+            highlight_function=lambda _: {
+                "color": "#ff9d2e", "weight": 3, "fillOpacity": 0.55
+            },
         ).add_to(carte)
         # Calcul de cadrage à partir des coordonnées, sans union topologique GEOS.
         extent = [shape(f["geometry"]).bounds for f in visibles]
@@ -241,14 +304,33 @@ if not quartiers_actifs:
             locals().get("selection_mun", ""),
         ])
         st_folium(carte, height=690, use_container_width=True,
-                  returned_objects=[], key=f"province-map:{selection_key}:{fond_carte}")
+                  returned_objects=[],
+                  key=f"province-map:{selection_key}:{fond_carte}:{theme_regional}")
+        if colormap_regions is not None:
+            legend_choropleth(
+                INDICATEURS[theme_regional][0],
+                colormap_regions.vmin, colormap_regions.vmax,
+            )
     with details_col:
         props = visibles[0]["properties"] if len(visibles) == 1 else None
         inspector(
             nom=props["nom"] if props else "Province de Québec",
             niveau=niveau,
             code=props["code"] if props else None,
-            note="Sélectionne un territoire dans la navigation de gauche pour explorer les divisions administratives. Les indicateurs sociodémographiques de cette vue seront ajoutés à partir de sources officielles.",
+            population=(
+                f"{ligne_region['population_2025']:,}".replace(",", " ")
+                if ligne_region else None
+            ),
+            population_annee=2025,
+            note=(
+                "La population indiquée concerne la région administrative choisie "
+                "(2025), même si la carte affiche une MRC ou une municipalité. "
+                "Source : Institut de la statistique du Québec."
+                if ligne_region else
+                "Les quatre indicateurs socioéconomiques régionaux sont disponibles "
+                "dans le panneau d'analyse sous la carte. "
+                "Source : Institut de la statistique du Québec."
+            ),
         )
     st.caption("Source : MRNF — Découpages administratifs du Québec. Géométries réparées et simplifiées pour affichage.")
     st.caption("Les quartiers sont disponibles pour la ville de Québec lorsqu’elle est sélectionnée; ailleurs, leur couverture dépend des données existantes.")
