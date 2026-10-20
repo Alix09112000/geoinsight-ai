@@ -66,3 +66,15 @@ Les indicateurs manquants ne sont pas estimés. Les cartes choroplèthes sont de
 Les vues Région → MRC → Municipalité → Quartier appliquent un **masque extérieur opaque** basé sur l'union des 17 régions administratives officielles du MRNF. Les fonds **Plan** et **Satellite** restent visibles sur le territoire québécois ; les régions limitrophes (Ontario, Nouveau-Brunswick, États-Unis, etc.) sont visuellement masquées. La navigation cartographique est bornée autour du Québec.
 
 Le masque est construit dans `app/quebec_mask.py`, mis en cache quotidiennement dans Streamlit et couvert par `tests/test_quebec_mask.py`. Si le calcul topologique échoue, la carte s'affiche sans fond cartographique plutôt que de montrer les territoires voisins. Les limites simplifiées servent à l'affichage, non à établir des superficies légales.
+
+## Analyse régionale descriptive (nouveau chantier BI)
+
+Dans la vue provinciale, déplier **« 📊 Analyse comparative des 17 régions »** sous la carte :
+
+- Comparer les superficies géodésiques cartographiques estimées des 17 régions et voir le classement graphique.
+- Choisir deux régions et afficher l'écart de superficie.
+- Exporter les valeurs calculées dans un fichier CSV avec les codes régionaux.
+- Les géométries sont celles du service cartographique MRNF, simplifiées et réparées pour le navigateur. Calcul géodésique WGS84 avec anneaux extérieurs/intérieurs orientés correctement.
+- Il ne s'agit **pas** de superficies administratives officielles certifiées. Les plans d'eau et simplifications cartographiques modifient les surfaces; aucune population ou statistique économique n'est déduite des seuls polygones.
+
+Les prochains indicateurs (population par région, revenus, emploi, entreprises) seront intégrés uniquement après contrôle de leurs sources, millésimes et correspondances administratives.
