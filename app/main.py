@@ -335,6 +335,81 @@ if not quartiers_actifs:
     st.caption("Source : MRNF — Découpages administratifs du Québec. Géométries réparées et simplifiées pour affichage.")
     st.caption("Les quartiers sont disponibles pour la ville de Québec lorsqu’elle est sélectionnée; ailleurs, leur couverture dépend des données existantes.")
 
+    if indicateurs_regionaux:
+        with st.expander("📈 Données socioéconomiques officielles — 17 régions", expanded=True):
+            st.caption(
+                "Source : Institut de la statistique du Québec (ISQ). "
+                "Population et 65+ : 2025 ; faible revenu des familles : 2023 ; "
+                "revenu disponible par habitant : 2024 (provisoire). "
+                "Ces indicateurs ont des unités et des années différentes."
+            )
+            col_metric, col_coverage = st.columns([3, 1])
+            with col_metric:
+                champ_socio = st.selectbox(
+                    "Indicateur à comparer",
+                    list(INDICATEURS),
+                    format_func=lambda item: INDICATEURS[item][0],
+                    key="indicator_regions_chart",
+                )
+            with col_coverage:
+                st.metric("Régions couvertes", f"{len(indicateurs_regionaux)}/17")
+            titre_indicateur, _, annee_indicateur = INDICATEURS[champ_socio]
+            frame_isq = pd.DataFrame(indicateurs_regionaux)
+            ordre_isq = frame_isq.sort_values(champ_socio, ascending=False)
+            st.bar_chart(
+                ordre_isq.set_index("nom_region")[[champ_socio]],
+                horizontal=True,
+            )
+            st.caption(
+                f"Classement par : {titre_indicateur}. "
+                "La comparaison porte uniquement sur des régions administratives, "
+                "sans extrapolation aux MRC."
+            )
+            region_a, region_b = st.columns(2)
+            options_isq = sorted(
+                [(row["code_region"], row["nom_region"]) for row in indicateurs_regionaux]
+            )
+            def format_region(code):
+                return f"{code} — {indicateurs_isq[code]['nom_region']}"
+            with region_a:
+                first_code = st.selectbox(
+                    "Comparer : région A",
+                    [item[0] for item in options_isq],
+                    format_func=format_region, key="regional_isq_a",
+                )
+            with region_b:
+                second_code = st.selectbox(
+                    "Comparer : région B",
+                    [item[0] for item in options_isq],
+                    index=1, format_func=format_region, key="regional_isq_b",
+                )
+            if first_code != second_code:
+                first_isq, second_isq = indicateurs_isq[first_code], indicateurs_isq[second_code]
+                lines_isq = [{
+                    "Indicateur": info[0],
+                    "Année": info[2],
+                    first_isq["nom_region"]: format_indicateur(first_isq[field], field),
+                    second_isq["nom_region"]: format_indicateur(second_isq[field], field),
+                } for field, info in INDICATEURS.items()]
+                st.dataframe(pd.DataFrame(lines_isq), hide_index=True,
+                             use_container_width=True)
+            else:
+                st.info("Choisissez deux régions différentes pour la comparaison.")
+            with st.popover("Afficher les données et les sources"):
+                for _, record in frame_isq.sort_values("code_region").iterrows():
+                    st.markdown(f"[{record['code_region']} — {record['nom_region']}]({record['source']})")
+            st.download_button(
+                "⬇️ Télécharger les indicateurs officiels (CSV)",
+                data=frame_isq.to_csv(index=False).encode("utf-8-sig"),
+                file_name="geoinsight_indicateurs_isq_regions.csv",
+                mime="text/csv", key="export_region_isq",
+            )
+            st.caption(
+                "Attention : le découpage administratif a changé en Estrie et "
+                "en Chaudière-Appalaches. Consultez les notes méthodologiques "
+                "de chaque fiche régionale avant une analyse causale."
+            )
+
     # BI provinciale descriptive : aucun chiffre démographique extrapolé.
     with st.expander("📊 Analyse comparative des 17 régions", expanded=False):
         st.caption(
